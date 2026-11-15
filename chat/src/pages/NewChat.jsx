@@ -20,10 +20,10 @@ export default function UserListPage() {
     setError("");
     try {
       const [usersRes, friendsRes] = await Promise.all([
-        fetch("https://dream-chat-app-1.onrender.com/api/users", {
+        fetch("https://chatapp-system-mbzq.onrender.com/api/users", {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch("https://dream-chat-app-1.onrender.com/api/friends", {
+        fetch("https://chatapp-system-mbzq.onrender.com/api/friends", {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -48,7 +48,7 @@ export default function UserListPage() {
     setBusyUserId(addresseeId);
     setError("");
     try {
-      const response = await fetch("https://dream-chat-app-1.onrender.com/api/friends/request", {
+      const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/friends/request", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -72,7 +72,7 @@ export default function UserListPage() {
     setBusyUserId(otherUserId);
     setError("");
     try {
-      const response = await fetch("https://dream-chat-app-1.onrender.com/api/conversations", {
+      const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/conversations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -8,7 +8,7 @@ import MessageAttachment from "../components/MessageAttachment";
 import VoiceNoteButton from "../components/VoiceNoteButton";
 import UserAvatarMenu from "../components/UserAvatarMenu";
 import { MAX_ATTACHMENT_SIZE, readFileAsDataUrl } from "../attachmentUtils";
-const API_URL = "https://dream-chat-app-1.onrender.com";
+const API_URL = "https://chatapp-system-mbzq.onrender.com";
 
 // Call log messages are saved by the server as plain text, e.g. "Video call · 02:35".
 // This turns that text into a title + detail line for the little call card.
@@ -68,7 +68,7 @@ const otherUserId = activeConversation?.other_user_id || otherMessage?.user_id;
   useEffect(() => {
     async function fetchConversations() {
       try {
-        const response = await fetch("https://dream-chat-app-1.onrender.com/api/conversations", {
+        const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/conversations", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) return;
@@ -81,7 +81,7 @@ const otherUserId = activeConversation?.other_user_id || otherMessage?.user_id;
 
     async function fetchGroups() {
       try {
-        const response = await fetch("https://dream-chat-app-1.onrender.com/api/groups", {
+        const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/groups", {
           headers: { Authorization: "Bearer " + token },
         });
         if (!response.ok) return;
@@ -94,7 +94,7 @@ const otherUserId = activeConversation?.other_user_id || otherMessage?.user_id;
     }
 
     fetchConversations();
-    const socket = io("https://dream-chat-app-1.onrender.com", { auth: { token } });
+    const socket = io("https://chatapp-system-mbzq.onrender.com", { auth: { token } });
     socket.on("conversationCreated", fetchConversations);
     socket.on("unreadMessagesChanged", fetchConversations);
     socket.on("newGroupMessage", fetchGroups);
@@ -132,7 +132,7 @@ const otherUserId = activeConversation?.other_user_id || otherMessage?.user_id;
   const markConversationRead = useCallback(async () => {
     try {
       const response = await fetch(
-        `https://dream-chat-app-1.onrender.com/api/conversations/${conversationId}/read`,
+        `https://chatapp-system-mbzq.onrender.com/api/conversations/${conversationId}/read`,
         {
           method: "PATCH",
           headers: {
@@ -150,7 +150,7 @@ const otherUserId = activeConversation?.other_user_id || otherMessage?.user_id;
           : message
       ));
       const conversationsResponse = await fetch(
-        "https://dream-chat-app-1.onrender.com/api/conversations",
+        "https://chatapp-system-mbzq.onrender.com/api/conversations",
         { headers: { Authorization: "Bearer " + token } }
       );
       if (conversationsResponse.ok) {
@@ -168,7 +168,7 @@ const otherUserId = activeConversation?.other_user_id || otherMessage?.user_id;
     async function fetchMessages() {
       try {
         const response = await fetch(
-          `https://dream-chat-app-1.onrender.com/api/conversations/${conversationId}/messages`,
+          `https://chatapp-system-mbzq.onrender.com/api/conversations/${conversationId}/messages`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!response.ok) throw new Error("Failed to load messages.");
@@ -186,7 +186,7 @@ const otherUserId = activeConversation?.other_user_id || otherMessage?.user_id;
   useEffect(() => {
     if (!conversationId) return;
 
-    const socket = io("https://dream-chat-app-1.onrender.com", { auth: { token } });
+    const socket = io("https://chatapp-system-mbzq.onrender.com", { auth: { token } });
     socket.emit("joinConversation", conversationId);
 
     socket.on("newMessage", (message) => {
@@ -258,7 +258,7 @@ const otherUserId = activeConversation?.other_user_id || otherMessage?.user_id;
 
     try {
       const response = await fetch(
-        `https://dream-chat-app-1.onrender.com/api/conversations/${conversationId}/messages`,
+        `https://chatapp-system-mbzq.onrender.com/api/conversations/${conversationId}/messages`,
         {
           method: "POST",
           headers: {
@@ -319,7 +319,7 @@ socketRef.current?.emit("stopTyping", { conversationId: Number(conversationId) }
     if (!editContent.trim()) return;
     try {
       const response = await fetch(
-        `https://dream-chat-app-1.onrender.com/api/messages/${messageId}`,
+        `https://chatapp-system-mbzq.onrender.com/api/messages/${messageId}`,
         {
           method: "PATCH",
           headers: {
@@ -340,7 +340,7 @@ socketRef.current?.emit("stopTyping", { conversationId: Number(conversationId) }
     if (!window.confirm("Delete this message?")) return;
     try {
       const response = await fetch(
-        `https://dream-chat-app-1.onrender.com/api/messages/${messageId}`,
+        `https://chatapp-system-mbzq.onrender.com/api/messages/${messageId}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
@@ -354,7 +354,7 @@ socketRef.current?.emit("stopTyping", { conversationId: Number(conversationId) }
 useEffect(() => {
   if (!conversationId) return;
 
-  const socket = io("https://dream-chat-app-1.onrender.com", { auth: { token } });
+  const socket = io("https://chatapp-system-mbzq.onrender.com", { auth: { token } });
   socketRef.current = socket;
   socket.emit("joinConversation", conversationId);
 

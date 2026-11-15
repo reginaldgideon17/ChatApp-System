@@ -35,7 +35,7 @@ export default function NotificationsPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("https://dream-chat-app-1.onrender.com/api/notifications", {
+      const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/notifications", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Could not load notifications.");
@@ -55,7 +55,7 @@ export default function NotificationsPage() {
     setMarkingRead(true);
     setError("");
     try {
-      const response = await fetch("https://dream-chat-app-1.onrender.com/api/notifications/read", {
+      const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/notifications/read", {
         method: "PATCH",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -73,7 +73,7 @@ export default function NotificationsPage() {
     if (!notification.read) {
       try {
         const response = await fetch(
-          `https://dream-chat-app-1.onrender.com/api/notifications/${notification.id}/read`,
+          `https://chatapp-system-mbzq.onrender.com/api/notifications/${notification.id}/read`,
           {
             method: "PATCH",
             headers: { Authorization: `Bearer ${token}` },

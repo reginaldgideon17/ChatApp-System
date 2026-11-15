@@ -20,7 +20,7 @@ export default function InboxPage() {
   useEffect(() => {
     async function fetchConversations(openFirstConversation = false) {
       try {
-        const response = await fetch("https://dream-chat-app-1.onrender.com/api/conversations", {
+        const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/conversations", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) throw new Error("Failed to load conversations.");
@@ -40,7 +40,7 @@ export default function InboxPage() {
 
   // track who's online via socket.io
   useEffect(() => {
-    const socket = io("https://dream-chat-app-1.onrender.com", {
+    const socket = io("https://chatapp-system-mbzq.onrender.com", {
       auth: { token },
     });
 

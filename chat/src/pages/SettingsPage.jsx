@@ -40,7 +40,7 @@ export default function SettingsPage() {
     setUploading(true);
     try {
       const resized = await resizeImage(file, 128);
-      const response = await fetch("https://dream-chat-app-1.onrender.com/api/users/avatar", {
+      const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/users/avatar", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -61,7 +61,7 @@ export default function SettingsPage() {
     setSavingField("username");
     setFieldMessage("username", null);
     try {
-      const response = await fetch("https://dream-chat-app-1.onrender.com/api/users/username", {
+      const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/users/username", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -84,7 +84,7 @@ export default function SettingsPage() {
     setSavingField("email");
     setFieldMessage("email", null);
     try {
-      const response = await fetch("https://dream-chat-app-1.onrender.com/api/users/email", {
+      const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/users/email", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -107,7 +107,7 @@ export default function SettingsPage() {
     setSavingField("password");
     setFieldMessage("password", null);
     try {
-      const response = await fetch("https://dream-chat-app-1.onrender.com/api/users/password", {
+      const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/users/password", {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

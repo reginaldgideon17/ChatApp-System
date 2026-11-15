@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 import Avatar from "./Avatar";
 import "../css/Call.css";
 
-const API = "https://dream-chat-app-1.onrender.com";
+const API = "https://chatapp-system-mbzq.onrender.com";
 
 // ICE servers help two browsers find a network path to each other.
 // STUN (free, from Google) tells each browser its own public address.

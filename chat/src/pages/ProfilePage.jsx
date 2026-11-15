@@ -4,7 +4,7 @@ import { resizeImage } from "../resizeImage";
 import Avatar from "../components/Avatar";
 import "../css/Profile.css";
 
-const API_URL = "https://dream-chat-app-1.onrender.com";
+const API_URL = "https://chatapp-system-mbzq.onrender.com";
 
 function formatDate(timestamp) {
   return new Date(timestamp).toLocaleDateString([], { month: "short", day: "numeric" });

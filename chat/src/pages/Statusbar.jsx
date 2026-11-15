@@ -35,7 +35,7 @@ export default function StatusBar() {
 
   const fetchStatuses = useCallback(async () => {
     try {
-      const response = await fetch("https://dream-chat-app-1.onrender.com/api/statuses", {
+      const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/statuses", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) setStatuses(await response.json());
@@ -73,7 +73,7 @@ export default function StatusBar() {
     if (Number(status?.user_id) === Number(user?.id)) return;
 
     try {
-      await fetch(`https://dream-chat-app-1.onrender.com/api/statuses/${statusId}/view`, {
+      await fetch(`https://chatapp-system-mbzq.onrender.com/api/statuses/${statusId}/view`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -131,7 +131,7 @@ export default function StatusBar() {
     setStatusError("");
     setReplyMessage("");
     try {
-      const conversationResponse = await fetch("https://dream-chat-app-1.onrender.com/api/conversations", {
+      const conversationResponse = await fetch("https://chatapp-system-mbzq.onrender.com/api/conversations", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -148,7 +148,7 @@ export default function StatusBar() {
         .replace(/\s+/g, " ");
       const content = `Status reply · ${status.username}\n${statusQuote}\n\n${message}`;
       const messageResponse = await fetch(
-        `https://dream-chat-app-1.onrender.com/api/conversations/${conversationData.id}/messages`,
+        `https://chatapp-system-mbzq.onrender.com/api/conversations/${conversationData.id}/messages`,
         {
           method: "POST",
           headers: {
@@ -177,7 +177,7 @@ export default function StatusBar() {
 
     setStatusError("");
     try {
-      const response = await fetch(`https://dream-chat-app-1.onrender.com/api/statuses/${status.id}`, {
+      const response = await fetch(`https://chatapp-system-mbzq.onrender.com/api/statuses/${status.id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -210,7 +210,7 @@ export default function StatusBar() {
     if (!text.trim() && !imagePreview) return;
     setPosting(true);
     try {
-      await fetch("https://dream-chat-app-1.onrender.com/api/statuses", {
+      await fetch("https://chatapp-system-mbzq.onrender.com/api/statuses", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

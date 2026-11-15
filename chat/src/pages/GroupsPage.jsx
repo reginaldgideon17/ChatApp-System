@@ -15,7 +15,7 @@ export default function GroupsPage() {
   useEffect(() => {
     async function fetchGroups() {
       try {
-        const response = await fetch("https://dream-chat-app-1.onrender.com/api/groups", {
+        const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/groups", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) throw new Error("Failed to load groups.");

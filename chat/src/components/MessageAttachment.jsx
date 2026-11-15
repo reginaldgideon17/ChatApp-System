@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-const API_URL = "https://dream-chat-app-1.onrender.com";
+const API_URL = "https://chatapp-system-mbzq.onrender.com";
 
 async function fetchAttachment(messageId, token) {
   const response = await fetch(`${API_URL}/api/messages/${messageId}/attachment`, {

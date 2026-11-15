@@ -120,7 +120,7 @@ export default function Layout() {
 
   const refreshUnreadCounts = useCallback(async () => {
     try {
-      const response = await fetch("https://dream-chat-app-1.onrender.com/api/unread-counts", {
+      const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/unread-counts", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) return;
@@ -144,7 +144,7 @@ export default function Layout() {
   // so we reload them instantly instead of waiting for the 20s timer.
   useEffect(() => {
     if (!token) return undefined;
-    const socket = io("https://dream-chat-app-1.onrender.com", { auth: { token } });
+    const socket = io("https://chatapp-system-mbzq.onrender.com", { auth: { token } });
     socket.on("unreadMessagesChanged", refreshUnreadCounts);
     socket.on("newNotification", refreshUnreadCounts);
     socket.on("notificationsChanged", refreshUnreadCounts);

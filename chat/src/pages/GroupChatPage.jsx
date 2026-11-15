@@ -7,7 +7,7 @@ import MessageAttachment from "../components/MessageAttachment";
 import VoiceNoteButton from "../components/VoiceNoteButton";
 import { MAX_ATTACHMENT_SIZE, readFileAsDataUrl } from "../attachmentUtils";
 
-const API_URL = "https://dream-chat-app-1.onrender.com";
+const API_URL = "https://chatapp-system-mbzq.onrender.com";
 
 function formatTime(timestamp) {
   const date = new Date(timestamp);
@@ -38,7 +38,7 @@ export default function GroupChatPage() {
   useEffect(() => {
     async function fetchGroupName() {
       try {
-        const response = await fetch("https://dream-chat-app-1.onrender.com/api/groups", {
+        const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/groups", {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!response.ok) return;
@@ -56,7 +56,7 @@ export default function GroupChatPage() {
     async function fetchMessages() {
       try {
         const response = await fetch(
-          `https://dream-chat-app-1.onrender.com/api/groups/${groupId}/messages`,
+          `https://chatapp-system-mbzq.onrender.com/api/groups/${groupId}/messages`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!response.ok) throw new Error("Failed to load messages.");
@@ -70,7 +70,7 @@ export default function GroupChatPage() {
   }, [token, groupId]);
 
   useEffect(() => {
-    const socket = io("https://dream-chat-app-1.onrender.com", { auth: { token } });
+    const socket = io("https://chatapp-system-mbzq.onrender.com", { auth: { token } });
     socket.emit("joinGroup", groupId);
 
     socket.on("newGroupMessage", (message) => {
@@ -111,7 +111,7 @@ export default function GroupChatPage() {
 
     try {
       const response = await fetch(
-        `https://dream-chat-app-1.onrender.com/api/groups/${groupId}/messages`,
+        `https://chatapp-system-mbzq.onrender.com/api/groups/${groupId}/messages`,
         {
           method: "POST",
           headers: {
@@ -170,7 +170,7 @@ export default function GroupChatPage() {
     if (!editContent.trim()) return;
     try {
       const response = await fetch(
-        `https://dream-chat-app-1.onrender.com/api/groups/messages/${messageId}`,
+        `https://chatapp-system-mbzq.onrender.com/api/groups/messages/${messageId}`,
         {
           method: "PATCH",
           headers: {
@@ -191,7 +191,7 @@ export default function GroupChatPage() {
     if (!window.confirm("Delete this message?")) return;
     try {
       const response = await fetch(
-        `https://dream-chat-app-1.onrender.com/api/groups/messages/${messageId}`,
+        `https://chatapp-system-mbzq.onrender.com/api/groups/messages/${messageId}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },

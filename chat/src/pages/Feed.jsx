@@ -64,7 +64,7 @@ export default function Feed() {
 
   async function fetchPosts() {
     try {
-      const response = await fetch("https://dream-chat-app-1.onrender.com/api/posts", {
+      const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/posts", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Failed to load feed.");
@@ -77,7 +77,7 @@ export default function Feed() {
 
   async function fetchFriends() {
     try {
-      const response = await fetch("https://dream-chat-app-1.onrender.com/api/friends", {
+      const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/friends", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (response.ok) setFriends(await response.json());
@@ -120,7 +120,7 @@ export default function Feed() {
       )
     );
     try {
-      await fetch(`https://dream-chat-app-1.onrender.com/api/posts/${postId}/like`, {
+      await fetch(`https://chatapp-system-mbzq.onrender.com/api/posts/${postId}/like`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -140,7 +140,7 @@ export default function Feed() {
       return;
     }
     try {
-      const response = await fetch(`https://dream-chat-app-1.onrender.com/api/posts/${postId}/comments`, {
+      const response = await fetch(`https://chatapp-system-mbzq.onrender.com/api/posts/${postId}/comments`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -156,7 +156,7 @@ export default function Feed() {
     if (!text) return;
 
     try {
-      const response = await fetch(`https://dream-chat-app-1.onrender.com/api/posts/${postId}/comments`, {
+      const response = await fetch(`https://chatapp-system-mbzq.onrender.com/api/posts/${postId}/comments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -193,7 +193,7 @@ export default function Feed() {
 
     setPosting(true);
     try {
-      const response = await fetch("https://dream-chat-app-1.onrender.com/api/posts", {
+      const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/posts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

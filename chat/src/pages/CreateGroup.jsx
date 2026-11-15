@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Avatar from "../components/Avatar";
 import "../css/CreateGroup.css";
 
-const API_URL = "https://dream-chat-app-1.onrender.com";
+const API_URL = "https://chatapp-system-mbzq.onrender.com";
 
 export default function CreateGroup() {
   const [friends, setFriends] = useState([]);

@@ -13,7 +13,7 @@ export default function RequestsPage() {
 
   async function fetchRequests() {
     try {
-      const response = await fetch("https://dream-chat-app-1.onrender.com/api/friends/requests", {
+      const response = await fetch("https://chatapp-system-mbzq.onrender.com/api/friends/requests", {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Failed to load requests.");
@@ -31,7 +31,7 @@ export default function RequestsPage() {
 
   // live-update when a new request comes in
   useEffect(() => {
-    const socket = io("https://dream-chat-app-1.onrender.com", { auth: { token } });
+    const socket = io("https://chatapp-system-mbzq.onrender.com", { auth: { token } });
     socket.on("friendRequestReceived", () => {
       fetchRequests();
     });
@@ -42,7 +42,7 @@ export default function RequestsPage() {
   async function respond(friendshipId, status) {
     try {
       const response = await fetch(
-        `https://dream-chat-app-1.onrender.com/api/friends/${friendshipId}`,
+        `https://chatapp-system-mbzq.onrender.com/api/friends/${friendshipId}`,
         {
           method: "PATCH",
           headers: {
