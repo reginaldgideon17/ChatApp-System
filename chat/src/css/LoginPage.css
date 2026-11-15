@@ -256,3 +256,92 @@
   .auth-art { border-radius: 20px; }
   .auth-title { font-size: 24px; }
 }
+
+/* ---- Extras: field errors, strength meter, spinner, notices ---- */
+.auth-field input[aria-invalid="true"] {
+  border-color: #e5484d;
+}
+.auth-field input[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px rgba(229, 72, 77, 0.16);
+}
+
+.auth-field-error {
+  margin: 0;
+  font-size: 12.5px;
+  color: #c7343a;
+}
+
+.auth-error {
+  border: 1px solid #f6caca;
+}
+
+.auth-notice {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff4ec;
+  border: 1px solid #ffd9bd;
+  color: #9a4a12;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.auth-strength {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+}
+.auth-strength-bars {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+.auth-strength-bars span {
+  height: 4px;
+  border-radius: 999px;
+  background: #e7e4ec;
+  transition: background 0.2s ease;
+}
+.auth-strength-bars span.on.level-1 { background: #e5484d; }
+.auth-strength-bars span.on.level-2 { background: #f5a524; }
+.auth-strength-bars span.on.level-3 { background: #7ac74f; }
+.auth-strength-bars span.on.level-4 { background: #2eaa5b; }
+.auth-strength-label {
+  min-width: 44px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b6672;
+}
+
+.auth-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.auth-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-top-color: #fff;
+  animation: auth-spin 0.7s linear infinite;
+}
+@keyframes auth-spin { to { transform: rotate(360deg); } }
+
+/* Gentle floating picture (switched off for people who prefer less motion) */
+@media (prefers-reduced-motion: no-preference) {
+  .auth-art-svg { animation: auth-float 6s ease-in-out infinite; }
+  .auth-card { animation: auth-in 0.35s ease-out; }
+}
+@keyframes auth-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes auth-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
