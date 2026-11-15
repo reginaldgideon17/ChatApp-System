@@ -1,0 +1,15 @@
+# Dependencies and generated output
+**/node_modules/
+**/dist/
+**/build/
+**/coverage/
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Local logs and editor files
+*.log
+.vscode/
+.idea/

@@ -1,0 +1,456 @@
+/* ---- Video call ---- */
+
+/* Small message at the bottom, e.g. "No answer." */
+.call-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  z-index: 300;
+  background: var(--surface-3, #232e3b);
+  color: var(--ink, #f2f5f9);
+  border: 1px solid var(--border-subtle, #293340);
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-size: 14px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* Dark backdrop behind the "incoming call" card */
+.call-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  background: rgba(5, 8, 12, 0.72);
+  padding: 20px;
+}
+
+.call-incoming {
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+  background: var(--surface-1, #151c25);
+  border: 1px solid var(--border-subtle, #293340);
+  border-radius: 18px;
+  padding: 28px 24px;
+  color: var(--ink, #f2f5f9);
+  box-shadow: 0 24px 64px -24px rgba(0, 0, 0, 0.9);
+}
+
+.call-incoming h2,
+.call-waiting h2 {
+  margin: 14px 0 4px;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 22px;
+}
+
+.call-incoming p,
+.call-waiting p {
+  margin: 0 0 18px;
+  color: var(--gray-neutral, #9aa7b8);
+  font-size: 14px;
+}
+
+.call-incoming-avatar {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  margin: 0 auto;
+  font-size: 28px;
+}
+
+.call-incoming-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+/* Full-screen call */
+.call-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: #05080c;
+  overflow: hidden;
+}
+
+.call-remote {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #05080c;
+}
+
+/* "Calling…" / "Connecting…" panel on top of the empty remote video */
+.call-waiting {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--page-bg, #0c1118);
+  color: var(--ink, #f2f5f9);
+}
+
+/* My own small preview, bottom-right. Mirrored so it feels like a mirror. */
+.call-local {
+  position: absolute;
+  right: 16px;
+  bottom: 110px;
+  width: 120px;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: #111;
+  transform: scaleX(-1);
+  z-index: 2;
+}
+
+.call-local-off {
+  opacity: 0.35;
+}
+
+.call-controls {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 28px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 16px;
+  z-index: 3;
+}
+
+/* Buttons */
+.call-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 12px 22px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #fff;
+  font-family: inherit;
+}
+
+.call-btn-accept {
+  background: var(--accent-green, #31b487);
+}
+
+.call-btn-decline {
+  background: #d9485b;
+}
+
+.call-btn-round {
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(6px);
+}
+
+.call-btn-off {
+  background: #fff;
+  color: #111;
+}
+
+.call-btn:hover {
+  filter: brightness(1.1);
+}
+
+/* The call button in the chat header (ChatPage) */
+.chat-call-button {
+  margin-left: auto;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-subtle, #293340);
+  border-radius: 50%;
+  background: var(--surface-3, #232e3b);
+  color: var(--accent-cool, #75baff);
+  cursor: pointer;
+}
+
+.chat-call-button:hover {
+  background: rgba(52, 127, 229, 0.2);
+}
+
+@media (max-width: 640px) {
+  .call-local {
+    width: 96px;
+    right: 12px;
+    bottom: 100px;
+  }
+  .call-btn {
+    padding: 12px 16px;
+  }
+}
+
+/* ---- Top strip inside the full-screen call: minimize + name + timer ---- */
+.call-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  padding: 14px 14px 28px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent);
+  color: #fff;
+}
+
+.call-minimize {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.call-topinfo {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.25;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+}
+
+.call-topinfo strong {
+  font-size: 15px;
+}
+
+.call-timer {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums; /* digits stay the same width so the timer doesn't jiggle */
+  opacity: 0.9;
+}
+
+/* ---- Minimized: the call becomes a small floating video window (picture-in-picture) ---- */
+.call-screen.call-minimized {
+  inset: auto;               /* cancel the full-screen stretch */
+  top: 80px;
+  right: 14px;
+  width: 150px;
+  height: 210px;
+  border-radius: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6);
+  background: #05080c;
+  cursor: grab;
+  touch-action: none;        /* so dragging with a finger doesn't scroll the page */
+  user-select: none;
+}
+
+.call-screen.call-minimized:active {
+  cursor: grabbing;
+}
+
+/* Hide the big-screen extras. The remote video stays and fills the little window. */
+.call-minimized .call-local,
+.call-minimized .call-controls,
+.call-minimized .call-topbar {
+  display: none;
+}
+
+/* While still ringing/connecting, show a tiny version of the waiting panel */
+.call-minimized .call-waiting h2 {
+  font-size: 14px;
+  margin: 8px 0 0;
+}
+
+.call-minimized .call-waiting p {
+  display: none;
+}
+
+.call-minimized .call-incoming-avatar {
+  width: 52px;
+  height: 52px;
+  font-size: 18px;
+}
+
+/* Name + timer, top-left of the window */
+.pip-info {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px 18px;
+  line-height: 1.25;
+  color: #fff;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent);
+  pointer-events: none;      /* taps go through to the window */
+}
+
+.pip-info strong {
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pip-info span {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.9;
+}
+
+/* Mic + end buttons, bottom of the window */
+.pip-actions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px 8px 8px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+}
+
+.pip-btn {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  cursor: pointer;
+}
+
+.pip-btn-off {
+  background: #fff;
+  color: #111;
+}
+
+.pip-btn-end {
+  background: #d9485b;
+}
+
+/* Bigger window on desktop, landscape like a normal webcam picture */
+@media (min-width: 769px) {
+  .call-screen.call-minimized {
+    width: 260px;
+    height: 180px;
+    top: 90px;
+    right: 24px;
+  }
+}
+
+/* ---- Call log card inside the chat ("Video call · 02:35") ---- */
+.call-log-row {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.call-log-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 380px;
+  padding: 10px 14px;
+  background: var(--surface-2, #1b242f);
+  border: 1px solid var(--border-subtle, #293340);
+  border-radius: 16px;
+  color: var(--ink, #f2f5f9);
+}
+
+.call-log-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: rgba(49, 180, 135, 0.18);
+  color: var(--accent-green, #31b487);
+}
+
+.call-log-missed .call-log-icon {
+  background: rgba(232, 121, 134, 0.18);
+  color: var(--danger, #e87986);
+}
+
+.call-log-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.call-log-text strong {
+  font-size: 14px;
+}
+
+.call-log-text span {
+  font-size: 12.5px;
+  color: var(--gray-neutral, #9aa7b8);
+}
+
+.call-log-time {
+  font-size: 11px;
+  color: var(--gray-neutral, #9aa7b8);
+  align-self: flex-start;
+}
+
+.call-log-callback {
+  flex: 0 0 auto;
+  border: 1px solid var(--border-subtle, #293340);
+  border-radius: 999px;
+  background: var(--surface-3, #232e3b);
+  color: var(--accent-cool, #75baff);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.call-log-callback:hover {
+  background: rgba(52, 127, 229, 0.2);
+}
+
+/* ---- Live "on a call" card: the green icon pulses while the call is running ---- */
+.call-log-live {
+  border-color: rgba(49, 180, 135, 0.5);
+}
+
+.call-log-live .call-log-icon {
+  animation: call-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes call-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(49, 180, 135, 0.45); }
+  50% { box-shadow: 0 0 0 8px rgba(49, 180, 135, 0); }
+}
+
+/* Phones: keep the floating window below the status bar / notch */
+@media (max-width: 768px) {
+  .call-screen.call-minimized {
+    top: calc(env(safe-area-inset-top, 0px) + 70px);
+  }
+}

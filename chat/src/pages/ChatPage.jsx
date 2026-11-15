@@ -1,0 +1,766 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { io } from "socket.io-client";
+import "../css/Chatpage.css";
+import Avatar from "../components/Avatar";
+import AttachmentPicker from "../components/AttachmentPicker";
+import MessageAttachment from "../components/MessageAttachment";
+import VoiceNoteButton from "../components/VoiceNoteButton";
+import UserAvatarMenu from "../components/UserAvatarMenu";
+import { MAX_ATTACHMENT_SIZE, readFileAsDataUrl } from "../attachmentUtils";
+const API_URL = "https://dream-chat-app-1.onrender.com";
+
+// Call log messages are saved by the server as plain text, e.g. "Video call · 02:35".
+// This turns that text into a title + detail line for the little call card.
+function parseCallLog(content, isMine) {
+  if (typeof content !== "string") return null;
+  if (content.startsWith("Video call · ")) {
+    return {
+      detail: `${isMine ? "Outgoing" : "Incoming"} · ${content.slice("Video call · ".length)}`,
+      missed: false,
+    };
+  }
+  if (content === "Missed video call") {
+    return { detail: isMine ? "No answer" : "Missed", missed: !isMine };
+  }
+  if (content === "Video call declined") {
+    return { detail: isMine ? "Declined" : "You declined", missed: false };
+  }
+  return null;
+}
+
+function formatTime(timestamp) {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+export default function ChatPage() {
+  const { conversationId } = useParams();
+  const navigate = useNavigate();
+  const [conversations, setConversations] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [conversationSearch, setConversationSearch] = useState("");
+  const [activeListTab, setActiveListTab] = useState("friends");
+  const [showAddMenu, setShowAddMenu] = useState(false);
+  const [sendingAttachment, setSendingAttachment] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [error, setError] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editContent, setEditContent] = useState("");
+  const [replyingTo, setReplyingTo] = useState(null); // { id, content, username }
+  const [otherIsTyping, setOtherIsTyping] = useState(false);
+const typingTimeoutRef = useRef(null);
+const socketRef = useRef(null);
+  const bottomRef = useRef(null);
+  const inputRef = useRef(null);
+  const addMenuRef = useRef(null);
+  const user = JSON.parse(localStorage.getItem("user"));
+  const token = localStorage.getItem("token");
+const otherMessage = messages.find((m) => m.username !== user?.username);
+const activeConversation = conversations.find((conversation) =>
+  String(conversation.conversation_id) === String(conversationId)
+);
+const otherPerson = activeConversation?.other_username || otherMessage?.username;
+const otherAvatar = activeConversation?.other_user_avatar || otherMessage?.avatar;
+const otherUserId = activeConversation?.other_user_id || otherMessage?.user_id;
+
+  useEffect(() => {
+    async function fetchConversations() {
+      try {
+        const response = await fetch("https://dream-chat-app-1.onrender.com/api/conversations", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        setConversations(data);
+      } catch {
+        // Keep the chat open if the conversation list is temporarily unavailable.
+      }
+    }
+
+    async function fetchGroups() {
+      try {
+        const response = await fetch("https://dream-chat-app-1.onrender.com/api/groups", {
+          headers: { Authorization: "Bearer " + token },
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        setGroups(data);
+        data.forEach((group) => socket.emit("joinGroup", group.id));
+      } catch {
+        // Keep the groups already loaded if the API is temporarily unavailable.
+      }
+    }
+
+    fetchConversations();
+    const socket = io("https://dream-chat-app-1.onrender.com", { auth: { token } });
+    socket.on("conversationCreated", fetchConversations);
+    socket.on("unreadMessagesChanged", fetchConversations);
+    socket.on("newGroupMessage", fetchGroups);
+    fetchGroups();
+    const intervalId = window.setInterval(() => {
+      fetchConversations();
+      fetchGroups();
+    }, 15000);
+    return () => {
+      window.clearInterval(intervalId);
+      socket.disconnect();
+    };
+  }, [token]);
+
+  useEffect(() => {
+    if (!showAddMenu) return undefined;
+
+    function closeMenu(event) {
+      if (!addMenuRef.current?.contains(event.target)) {
+        setShowAddMenu(false);
+      }
+    }
+    function handleMenuKey(event) {
+      if (event.key === "Escape") setShowAddMenu(false);
+    }
+
+    document.addEventListener("mousedown", closeMenu);
+    document.addEventListener("keydown", handleMenuKey);
+    return () => {
+      document.removeEventListener("mousedown", closeMenu);
+      document.removeEventListener("keydown", handleMenuKey);
+    };
+  }, [showAddMenu]);
+
+  const markConversationRead = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `https://dream-chat-app-1.onrender.com/api/conversations/${conversationId}/read`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      if (!response.ok) return;
+
+      const readAt = new Date().toISOString();
+      setMessages((current) => current.map((message) =>
+        String(message.user_id) !== String(user.id) && !message.read_at
+          ? { ...message, read_at: readAt }
+          : message
+      ));
+      const conversationsResponse = await fetch(
+        "https://dream-chat-app-1.onrender.com/api/conversations",
+        { headers: { Authorization: "Bearer " + token } }
+      );
+      if (conversationsResponse.ok) {
+        setConversations(await conversationsResponse.json());
+      }
+    } catch (err) {
+      console.error("Failed to mark as read:", err);
+    }
+  }, [conversationId, token, user.id]);
+
+  // fetch existing messages
+  useEffect(() => {
+    if (!conversationId) return;
+
+    async function fetchMessages() {
+      try {
+        const response = await fetch(
+          `https://dream-chat-app-1.onrender.com/api/conversations/${conversationId}/messages`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        if (!response.ok) throw new Error("Failed to load messages.");
+        const data = await response.json();
+        setMessages(data);
+        markConversationRead();
+      } catch (err) {
+        setError(err.message);
+      }
+    }
+    fetchMessages();
+  }, [token, conversationId, user.id, markConversationRead]);
+
+  // socket connection
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const socket = io("https://dream-chat-app-1.onrender.com", { auth: { token } });
+    socket.emit("joinConversation", conversationId);
+
+    socket.on("newMessage", (message) => {
+      if (message.conversationId !== Number(conversationId)) return;
+      if (String(message.user_id) !== String(user.id)) {
+        markConversationRead();
+      }
+      setMessages((prev) => {
+        const alreadyExists = prev.some((m) => m.id === message.id);
+        if (alreadyExists) return prev;
+        return [...prev, message];
+      });
+    });
+
+    socket.on("messagesRead", ({ conversationId: readConvId, readerId }) => {
+      if (readConvId !== Number(conversationId)) return;
+      if (readerId === user.id) return;
+
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.user_id === user.id && !m.read_at
+            ? { ...m, read_at: new Date().toISOString() }
+            : m
+        )
+      );
+    });
+
+    socket.on("messageEdited", (updated) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === updated.id
+            ? { ...m, content: updated.content, edited_at: updated.edited_at }
+            : m
+        )
+      );
+    });
+
+    socket.on("messageDeleted", ({ id, conversationId: delConvId }) => {
+      if (delConvId !== Number(conversationId)) return;
+      setMessages((prev) => prev.filter((m) => m.id !== id));
+    });
+
+    return () => socket.disconnect();
+  }, [token, conversationId, user.id, markConversationRead]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const filteredConversations = conversations.filter((conversation) =>
+    conversation.other_username.toLowerCase().includes(conversationSearch.toLowerCase())
+  );
+  const filteredGroups = groups.filter((group) =>
+    group.name.toLowerCase().includes(conversationSearch.toLowerCase())
+  );
+  const filteredItems = activeListTab === "groups" ? filteredGroups : filteredConversations;
+  const unreadMessageCount = conversations.reduce(
+    (total, conversation) => total + (Number(conversation.unread_count) || 0),
+    0
+  );
+  const unreadGroupMessageCount = groups.reduce(
+    (total, group) => total + (Number(group.unread_count) || 0),
+    0
+  );
+
+  async function handleSend(e) {
+    e.preventDefault();
+    if (!conversationId || !newMessage.trim()) return;
+
+    try {
+      const response = await fetch(
+        `https://dream-chat-app-1.onrender.com/api/conversations/${conversationId}/messages`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            content: newMessage,
+            replyToId: replyingTo ? replyingTo.id : null,
+          }),
+        }
+      );
+      if (!response.ok) throw new Error("Failed to send message.");
+      setNewMessage("");
+      setReplyingTo(null);
+    } catch (err) {
+      setError(err.message);
+    }
+    clearTimeout(typingTimeoutRef.current);
+socketRef.current?.emit("stopTyping", { conversationId: Number(conversationId) });
+  }
+
+  async function handleAttachmentSelected(file, attachmentLabel) {
+    if (!conversationId || !file) return;
+    if (file.size > MAX_ATTACHMENT_SIZE) {
+      setError("Attachments must be 10 MB or smaller.");
+      return;
+    }
+
+    setError("");
+    setSendingAttachment(true);
+    try {
+      const data = await readFileAsDataUrl(file);
+      const response = await fetch(`${API_URL}/api/conversations/${conversationId}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          content: newMessage.trim() || attachmentLabel || `📎 ${file.name}`,
+          replyToId: replyingTo ? replyingTo.id : null,
+          attachment: { file_name: file.name, mime_type: file.type || "application/octet-stream", data },
+        }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.message || "Failed to send attachment.");
+      setNewMessage("");
+      setReplyingTo(null);
+    } catch (uploadError) {
+      setError(uploadError.message || "Failed to send attachment.");
+    } finally {
+      setSendingAttachment(false);
+    }
+  }
+
+  async function handleEdit(messageId) {
+    if (!editContent.trim()) return;
+    try {
+      const response = await fetch(
+        `https://dream-chat-app-1.onrender.com/api/messages/${messageId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ content: editContent }),
+        }
+      );
+      if (!response.ok) throw new Error("Failed to edit message.");
+      setEditingId(null);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleDelete(messageId) {
+    if (!window.confirm("Delete this message?")) return;
+    try {
+      const response = await fetch(
+        `https://dream-chat-app-1.onrender.com/api/messages/${messageId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      if (!response.ok) throw new Error("Failed to delete message.");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+useEffect(() => {
+  if (!conversationId) return;
+
+  const socket = io("https://dream-chat-app-1.onrender.com", { auth: { token } });
+  socketRef.current = socket;
+  socket.emit("joinConversation", conversationId);
+
+  // ...all your existing listeners (newMessage, messagesRead, messageEdited, messageDeleted) stay here...
+
+  socket.on("userTyping", ({ conversationId: typingConvId }) => {
+    if (typingConvId !== Number(conversationId)) return;
+    setOtherIsTyping(true);
+  });
+
+  socket.on("userStoppedTyping", ({ conversationId: typingConvId }) => {
+    if (typingConvId !== Number(conversationId)) return;
+    setOtherIsTyping(false);
+  });
+
+  return () => socket.disconnect();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [token, conversationId]);
+  function startReply(msg) {
+    setReplyingTo({ id: msg.id, content: msg.content, username: msg.username });
+    inputRef.current?.focus();
+  }
+  function handleTyping(e) {
+  setNewMessage(e.target.value);
+
+  if (!socketRef.current) return;
+
+  socketRef.current.emit("typing", { conversationId: Number(conversationId) });
+
+  clearTimeout(typingTimeoutRef.current);
+  typingTimeoutRef.current = setTimeout(() => {
+    socketRef.current.emit("stopTyping", { conversationId: Number(conversationId) });
+  }, 2000);
+}
+
+  return (
+    <div className={`chat-workspace${conversationId ? " has-conversation" : ""}`}>
+      <aside className="chat-list-panel" aria-label="Your conversations">
+        <header className="chat-list-panel-header">
+          <div className="chat-list-heading">
+            <h1>Chats</h1>
+            <span>Stay close to your people</span>
+          </div>
+          <div className="chat-add-menu" ref={addMenuRef}>
+            <button
+              type="button"
+              onClick={() => setShowAddMenu((isOpen) => !isOpen)}
+              aria-label="Create a chat or group"
+              aria-haspopup="menu"
+              aria-expanded={showAddMenu}
+            >
+              +
+            </button>
+            {showAddMenu && (
+              <div className="chat-add-menu-options" role="menu">
+                <Link to="/new" role="menuitem" onClick={() => setShowAddMenu(false)}>
+                  New chat
+                </Link>
+                <Link to="/create-group" role="menuitem" onClick={() => setShowAddMenu(false)}>
+                  Create group
+                </Link>
+              </div>
+            )}
+          </div>
+        </header>
+        <div className="chat-list-tabs" role="tablist" aria-label="Chat lists">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeListTab === "friends"}
+            className={activeListTab === "friends" ? "active" : ""}
+            onClick={() => setActiveListTab("friends")}
+          >
+            Friends {unreadMessageCount > 0 && <span>{unreadMessageCount > 99 ? "99+" : unreadMessageCount}</span>}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeListTab === "groups"}
+            className={activeListTab === "groups" ? "active" : ""}
+            onClick={() => setActiveListTab("groups")}
+          >
+            Groups {unreadGroupMessageCount > 0 && (
+              <span>{unreadGroupMessageCount > 99 ? "99+" : unreadGroupMessageCount}</span>
+            )}
+          </button>
+        </div>
+        <label className="chat-search">
+          <span aria-hidden="true">⌕</span>
+          <input
+            type="search"
+            value={conversationSearch}
+            onChange={(event) => setConversationSearch(event.target.value)}
+            placeholder={activeListTab === "groups" ? "Search groups" : "Search friends"}
+            aria-label={activeListTab === "groups" ? "Search groups" : "Search friends"}
+          />
+        </label>
+        <div className="chat-conversation-list">
+          {activeListTab === "friends" && filteredConversations.map((conversation) => {
+            const unreadCount = Number(conversation.unread_count) || 0;
+            const isActive = String(conversation.conversation_id) === String(conversationId);
+
+            return (
+              <div
+                key={conversation.conversation_id}
+                className={`chat-conversation-row${isActive ? " active" : ""}${unreadCount ? " unread" : ""}`}
+              >
+                <UserAvatarMenu
+                  userId={conversation.other_user_id}
+                  src={conversation.other_user_avatar}
+                  name={conversation.other_username}
+                >
+                  <Avatar
+                    src={conversation.other_user_avatar}
+                    name={conversation.other_username}
+                    className="chat-list-avatar"
+                  />
+                </UserAvatarMenu>
+                <button
+                  type="button"
+                  className="chat-conversation-main"
+                  onClick={() => navigate(`/chat/${conversation.conversation_id}`)}
+                >
+                  <span className="chat-conversation-copy">
+                    <span className="chat-conversation-topline">
+                      <strong>{conversation.other_username}</strong>
+                      {conversation.last_message_at && (
+                        <time>{formatTime(conversation.last_message_at)}</time>
+                      )}
+                    </span>
+                    <span className={`chat-conversation-preview${conversation.last_message_unread ? " unread" : ""}`}>
+                      {conversation.last_message || "Start a conversation"}
+                    </span>
+                  </span>
+                  {unreadCount > 0 && (
+                    <span className="chat-conversation-badge">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+            );
+          })}
+          {activeListTab === "groups" && filteredGroups.map((group) => {
+            const messageCount = Number(group.message_count) || 0;
+            return (
+              <button
+                type="button"
+                key={group.id}
+                className="chat-conversation-row chat-group-row"
+                onClick={() => navigate(`/group/${group.id}`)}
+              >
+                <span className="chat-list-avatar chat-group-avatar" aria-hidden="true">
+                  {group.name.slice(0, 2).toUpperCase()}
+                </span>
+                <span className="chat-conversation-copy">
+                  <span className="chat-conversation-topline">
+                    <strong>{group.name}</strong>
+                    {Number(group.unread_count) > 0 && (
+                      <span className="chat-conversation-badge">
+                        {Number(group.unread_count) > 99 ? "99+" : group.unread_count}
+                      </span>
+                    )}
+                  </span>
+                  <span className="chat-conversation-preview">
+                    {messageCount === 0 ? "No messages yet" : `${messageCount} message${messageCount === 1 ? "" : "s"}`}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+          {filteredItems.length === 0 && (
+            <p className="chat-list-empty">
+              {conversationSearch
+                ? `No matching ${activeListTab === "groups" ? "groups" : "friends"}.`
+                : activeListTab === "groups" ? "Your groups will appear here." : "Your conversations will appear here."}
+            </p>
+          )}
+        </div>
+      </aside>
+
+      <section className="chat-page" aria-label={conversationId ? `Chat with ${otherPerson || "your contact"}` : "Morphues Web welcome"}>
+        <header className="chat-header">
+          <button className="chat-back-button" type="button" onClick={() => navigate("/chat")} aria-label="Back to chats">
+            ←
+          </button>
+          {conversationId && otherUserId ? (
+            <UserAvatarMenu userId={otherUserId} src={otherAvatar} name={otherPerson}>
+              <Avatar src={otherAvatar} name={otherPerson} className="chat-header-avatar" />
+            </UserAvatarMenu>
+          ) : conversationId ? (
+            <Avatar src={otherAvatar} name={otherPerson} className="chat-header-avatar" />
+          ) : (
+            <span className="chat-header-brand-mark" aria-hidden="true">M</span>
+          )}
+          <div className="chat-header-details">
+            <div className="chat-header-name">{otherPerson || "Morphues Web"}</div>
+            <span>{otherPerson ? "Direct message" : "Your conversations, all in one place"}</span>
+          </div>
+          {conversationId && otherUserId && (
+            <button
+              type="button"
+              className="chat-call-button"
+              title="Video call"
+              aria-label={`Video call ${otherPerson || "contact"}`}
+              onClick={() =>
+                // CallOverlay (mounted in Layout) listens for this browser event.
+                window.dispatchEvent(
+                  new CustomEvent("start-call", {
+                    detail: { id: otherUserId, username: otherPerson, avatar: otherAvatar },
+                  })
+                )
+              }
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="2" y="6" width="13" height="12" rx="2" />
+                <path d="m22 8-5 3.5v1L22 16z" />
+              </svg>
+            </button>
+          )}
+        </header>
+
+      <div className="message-list">
+        {!conversationId ? (
+          <div className="chat-empty-state">
+            <div className="chat-empty-icon" aria-hidden="true">
+              <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z" />
+              </svg>
+            </div>
+            <h2>Morphues Web</h2>
+            <p>Send messages, share moments, and stay close to the people who matter.</p>
+            <span>Select a conversation to get started</span>
+            <button type="button" onClick={() => navigate("/new")}>Start a new chat</button>
+          </div>
+        ) : messages.map((msg) => {
+          const isMine = msg.user_id === user.id;
+          const isEditing = editingId === msg.id;
+          const statusReplyLines = msg.content.startsWith("Status reply · ")
+            ? msg.content.split("\n")
+            : null;
+          const statusReplySeparator = statusReplyLines?.findIndex((line, index) => index > 0 && line === "") ?? -1;
+          const statusReplyName = statusReplyLines?.[0].slice("Status reply · ".length);
+          const statusReplyQuote = statusReplyLines && statusReplySeparator > 1
+            ? statusReplyLines.slice(1, statusReplySeparator).join("\n")
+            : "";
+          const statusReplyText = statusReplyLines && statusReplySeparator >= 0
+            ? statusReplyLines.slice(statusReplySeparator + 1).join("\n")
+            : "";
+
+          const callLog = parseCallLog(msg.content, isMine);
+          if (callLog) {
+            return (
+              <div key={msg.id} className="call-log-row">
+                <div className={`call-log-card${callLog.missed ? " call-log-missed" : ""}`}>
+                  <span className="call-log-icon" aria-hidden="true">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="2" y="6" width="13" height="12" rx="2" />
+                      <path d="m22 8-5 3.5v1L22 16z" />
+                    </svg>
+                  </span>
+                  <span className="call-log-text">
+                    <strong>Video call</strong>
+                    <span>{callLog.detail}</span>
+                  </span>
+                  <span className="call-log-time">{formatTime(msg.created_at)}</span>
+                  {otherUserId && (
+                    <button
+                      type="button"
+                      className="call-log-callback"
+                      onClick={() =>
+                        window.dispatchEvent(
+                          new CustomEvent("start-call", {
+                            detail: { id: otherUserId, username: otherPerson, avatar: otherAvatar },
+                          })
+                        )
+                      }
+                    >
+                      Call back
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div key={msg.id} className={`message ${isMine ? "message-mine" : "message-theirs"}`}>
+              <span className="message-author">{msg.username}</span>
+
+              {isEditing ? (
+                <div className="message-edit-box">
+                  <input
+                    type="text"
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="message-edit-input"
+                    autoFocus
+                  />
+                  <div className="message-edit-buttons">
+                    <button onClick={() => handleEdit(msg.id)} className="message-edit-save">
+                      Save
+                    </button>
+                    <button onClick={() => setEditingId(null)} className="message-edit-cancel">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {msg.reply_to_id && (
+                    <div className="message-reply-quote">
+                      <span className="message-reply-author">{msg.reply_username || "Deleted"}</span>
+                      <span className="message-reply-text">
+                        {msg.reply_content || "Original message deleted"}
+                      </span>
+                    </div>
+                  )}
+
+                  <span className="message-content">
+                    {statusReplyLines ? (
+                      <>
+                        <span className="message-status-context">
+                          <strong>{isMine ? `Your reply to ${statusReplyName}'s status` : "Replied to your status"}</strong>
+                          {statusReplyQuote && <span>{statusReplyQuote}</span>}
+                        </span>
+                        <span className="message-status-reply-text">{statusReplyText}</span>
+                      </>
+                    ) : msg.content}
+                    {msg.edited_at && <span className="message-edited-tag"> (edited)</span>}
+                  </span>
+                  <MessageAttachment attachment={msg.attachment} messageId={msg.id} token={token} />
+                  <span className="message-time">
+                    {formatTime(msg.created_at)}
+                    {isMine && (
+                      <span className={`read-receipt ${msg.read_at ? "read" : "sent"}`}>
+                        {msg.read_at ? " ✓✓" : " ✓"}
+                      </span>
+                    )}
+                  </span>
+                  <div className="message-actions">
+                    <button onClick={() => startReply(msg)}>Reply</button>
+                    {isMine && (
+                      <>
+                        {!msg.attachment && (
+                          <button
+                            onClick={() => {
+                              setEditingId(msg.id);
+                              setEditContent(msg.content);
+                            }}
+                          >
+                            Edit
+                          </button>
+                        )}
+                        <button onClick={() => handleDelete(msg.id)}>Delete</button>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
+        <div ref={bottomRef} />
+      </div>
+
+      {error && <p className="chat-error">{error}</p>}
+
+      {replyingTo && (
+        <div className="reply-preview">
+          <div className="reply-preview-text">
+            <span className="reply-preview-label">Replying to {replyingTo.username}</span>
+            <span className="reply-preview-content">{replyingTo.content}</span>
+          </div>
+          <button className="reply-preview-cancel" onClick={() => setReplyingTo(null)}>
+            ✕
+          </button>
+        </div>
+      )}
+{otherIsTyping && (
+  <div className="typing-indicator">{otherPerson} is typing...</div>
+)}
+      {conversationId && <form onSubmit={handleSend} className="message-form">
+        <AttachmentPicker disabled={sendingAttachment} onSelect={handleAttachmentSelected} />
+        <input
+          ref={inputRef}
+          type="text"
+          value={newMessage}
+          onChange={handleTyping}
+          placeholder="Type a message..."
+          className="message-input"
+        />
+        <VoiceNoteButton
+          disabled={sendingAttachment}
+          onSend={(file) => handleAttachmentSelected(file, "Voice note")}
+          onError={setError}
+        />
+        <button type="submit" className="send-button" disabled={sendingAttachment}>
+          <span className="send-button-text">{sendingAttachment ? "Sending…" : "Send"}</span>
+          <svg className="send-button-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m22 2-7 20-4-9-9-4Z" />
+            <path d="M22 2 11 13" />
+          </svg>
+        </button>
+      </form>}
+      </section>
+    </div>
+  );
+}
