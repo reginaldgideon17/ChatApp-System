@@ -6,9 +6,12 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const http = require('http');
 const { Server } = require('socket.io');
+const crypto = require('crypto');
 const authMiddleware = require('./authMiddleware');
 
 const app = express();
+// Render sits behind a proxy: needed so req.ip is the real visitor (used by the rate limiter)
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json({ limit: '15mb' }));
 
@@ -143,6 +146,181 @@ app.post('/api/auth/signup', async (req, res) => {
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
+
+// --- FORGOT / RESET PASSWORD ---
+
+const RESET_TOKEN_MINUTES = 30;
+const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex');
+
+// Tiny in-memory rate limiter: `max` requests per `windowMs` for each visitor (IP).
+function rateLimit(max, windowMs) {
+  const hits = new Map();
+  return (req, res, next) => {
+    const now = Date.now();
+    const key = req.ip;
+    const recent = (hits.get(key) || []).filter((t) => now - t < windowMs);
+    if (recent.length >= max) {
+      return res.status(429).json({ message: 'Too many attempts. Please wait a few minutes and try again.' });
+    }
+    recent.push(now);
+    hits.set(key, recent);
+    if (hits.size > 5000) hits.clear();
+    next();
+  };
+}
+
+// Sends an email through Brevo's web API (Render's free plan blocks normal SMTP, so we use HTTPS).
+// If BREVO_API_KEY isn't set (e.g. on your own computer) the email is printed in the server log instead.
+async function sendEmail({ to, subject, text, html }) {
+  if (!process.env.BREVO_API_KEY || !process.env.MAIL_FROM) {
+    console.log(`\n[email not configured - would have sent to ${to}]\nSubject: ${subject}\n${text}\n`);
+    return;
+  }
+  const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': process.env.BREVO_API_KEY,
+      'Content-Type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify({
+      sender: { name: process.env.MAIL_FROM_NAME || 'Morphues', email: process.env.MAIL_FROM },
+      to: [{ email: to }],
+      subject,
+      textContent: text,
+      htmlContent: html,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Email provider said ${response.status}: ${await response.text()}`);
+  }
+}
+
+function emailLayout(heading, bodyHtml, buttonText, buttonUrl) {
+  return `<div style="font-family:Arial,Helvetica,sans-serif;background:#f6f4f1;padding:32px 16px">
+  <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:20px;padding:32px;color:#1c1a20">
+    <div style="font-size:22px;font-weight:700;margin-bottom:20px">Morphues</div>
+    <h1 style="font-size:20px;margin:0 0 12px">${heading}</h1>
+    <div style="font-size:15px;line-height:1.55;color:#4a4550">${bodyHtml}</div>
+    ${buttonUrl ? `<p style="margin:28px 0"><a href="${buttonUrl}" style="background:#ff6a28;color:#ffffff;text-decoration:none;font-weight:700;padding:14px 28px;border-radius:999px;display:inline-block">${buttonText}</a></p>
+    <p style="font-size:12.5px;color:#8b8693;word-break:break-all">Button not working? Paste this link into your browser:<br>${buttonUrl}</p>` : ''}
+  </div></div>`;
+}
+
+app.post('/api/auth/forgot-password', rateLimit(8, 15 * 60 * 1000), async (req, res) => {
+  const email = String(req.body.email || '').trim();
+  // Same answer whether or not the account exists, so nobody can use this to find out who has an account
+  const reply = () => res.json({ message: 'If an account exists for that email, a reset link is on its way.' });
+  if (!email) return res.status(400).json({ message: 'Enter your email address.' });
+
+  try {
+    const found = await pool.query('SELECT id, username, email FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+    const user = found.rows[0];
+    if (!user) return reply();
+
+    // No more than 3 links per hour for one account
+    const recent = await pool.query(
+      `SELECT COUNT(*)::int AS n FROM password_resets WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 hour'`,
+      [user.id]
+    );
+    if (recent.rows[0].n >= 3) return reply();
+
+    const token = crypto.randomBytes(32).toString('hex');
+    await pool.query(
+      `INSERT INTO password_resets (user_id, token_hash, expires_at)
+       VALUES ($1, $2, NOW() + make_interval(mins => $3::int))`,
+      [user.id, sha256(token), RESET_TOKEN_MINUTES]
+    );
+
+    const frontend = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
+    const link = `${frontend}/reset-password?token=${token}`;
+    const text =
+      `Hi ${user.username},\n\nSomeone asked to reset your Morphues password. Open this link to choose a new one ` +
+      `(it works for ${RESET_TOKEN_MINUTES} minutes):\n\n${link}\n\nIf this wasn't you, you can ignore this email.`;
+    const html = emailLayout(
+      'Reset your password',
+      `Hi ${user.username},<br><br>Someone asked to reset your Morphues password. The link below works for ${RESET_TOKEN_MINUTES} minutes. If this wasn't you, just ignore this email.`,
+      'Choose a new password',
+      link
+    );
+
+    // Send in the background so the page answers straight away
+    sendEmail({ to: user.email, subject: 'Reset your Morphues password', text, html }).catch((err) =>
+      console.error('Could not send reset email:', err.message)
+    );
+    return reply();
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    return res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+// Lets the reset page know straight away if a link is no good (expired, used, or made up)
+app.post('/api/auth/reset-password/check', rateLimit(30, 15 * 60 * 1000), async (req, res) => {
+  const token = String(req.body.token || '');
+  if (!/^[a-f0-9]{64}$/.test(token)) return res.status(400).json({ message: 'This reset link is not valid.' });
+  try {
+    const found = await pool.query(
+      `SELECT 1 FROM password_resets WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW()`,
+      [sha256(token)]
+    );
+    if (found.rows.length === 0) {
+      return res.status(400).json({ message: 'This reset link has expired or was already used.' });
+    }
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Reset check error:', err);
+    return res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+app.post('/api/auth/reset-password', rateLimit(10, 15 * 60 * 1000), async (req, res) => {
+  const token = String(req.body.token || '');
+  const password = String(req.body.password || '');
+  if (!/^[a-f0-9]{64}$/.test(token)) return res.status(400).json({ message: 'This reset link is not valid.' });
+  if (password.length < 6) return res.status(400).json({ message: 'Use at least 6 characters for your password.' });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // FOR UPDATE: if the link is clicked twice at once, only one of them wins
+    const found = await client.query(
+      `SELECT id, user_id FROM password_resets
+       WHERE token_hash = $1 AND used_at IS NULL AND expires_at > NOW() FOR UPDATE`,
+      [sha256(token)]
+    );
+    const reset = found.rows[0];
+    if (!reset) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: 'This reset link has expired or was already used.' });
+    }
+    const hash = await bcrypt.hash(password, 10);
+    const updated = await client.query(
+      'UPDATE users SET password_hash = $1 WHERE id = $2 RETURNING username, email',
+      [hash, reset.user_id]
+    );
+    // Use up this link and any other links still waiting for the same account
+    await client.query('UPDATE password_resets SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL', [reset.user_id]);
+    await client.query('COMMIT');
+
+    const user = updated.rows[0];
+    sendEmail({
+      to: user.email,
+      subject: 'Your Morphues password was changed',
+      text: `Hi ${user.username},\n\nYour Morphues password was just changed. If this wasn't you, reset it again straight away.`,
+      html: emailLayout('Password changed', `Hi ${user.username},<br><br>Your Morphues password was just changed. If this wasn't you, reset it again straight away.`),
+    }).catch((err) => console.error('Could not send confirmation email:', err.message));
+
+    return res.json({ message: 'Password updated. You can log in now.' });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('Reset password error:', err);
+    return res.status(500).json({ message: 'Internal server error.' });
+  } finally {
+    client.release();
+  }
+});
+
 // --Backend 
 
 // --- USERS ---
@@ -1697,11 +1875,22 @@ async function startServer() {
          data BYTEA NOT NULL
        )`
     );
-    server.listen(3001, () => {
-      console.log('Server is running on port 3001');
+    await pool.query(
+      `CREATE TABLE IF NOT EXISTS password_resets (
+         id BIGSERIAL PRIMARY KEY,
+         user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+         token_hash TEXT NOT NULL UNIQUE,
+         expires_at TIMESTAMPTZ NOT NULL,
+         used_at TIMESTAMPTZ,
+         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+       )`
+    );
+    const PORT = process.env.PORT || 3001;
+    server.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
     });
   } catch (err) {
-    console.error('Failed to initialize message attachments:', err);
+    console.error('Failed to initialize the database tables:', err);
     process.exitCode = 1;
   }
 }

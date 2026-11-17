@@ -172,49 +172,49 @@ export default function SettingsPage() {
       </section>
 
       {/* Avatar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16, margin: "20px 0" }}>
+      <section className="settings-card settings-profile">
         <Avatar src={user?.avatar} name={user?.username} className="newchat-avatar" style={{ width: 72, height: 72, fontSize: 22 }} />
-        <label className="newchat-add-button" style={{ cursor: "pointer" }}>
+        <label className="newchat-add-button">
           {uploading ? "Uploading..." : "Change photo"}
           <input type="file" accept="image/*" onChange={handleFileChange} style={{ display: "none" }} disabled={uploading} />
         </label>
-      </div>
+      </section>
       {messages.avatar && (
         <p className={messages.avatar.isError ? "newchat-error" : "newchat-subtitle"}>{messages.avatar.text}</p>
       )}
 
       {/* Username */}
-      <div style={{ marginTop: 24 }}>
-        <label className="newchat-subtitle" style={{ display: "block", marginBottom: 6 }}>Username</label>
+      <section className="settings-card">
+        <label className="settings-label">Username</label>
         <div className="newchat-search">
           <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} />
         </div>
-        <button className="newchat-add-button" style={{ marginTop: 8 }} onClick={handleUsernameSave} disabled={savingField === "username"}>
+        <button className="newchat-add-button" onClick={handleUsernameSave} disabled={savingField === "username"}>
           {savingField === "username" ? "Saving..." : "Save username"}
         </button>
         {messages.username && (
           <p className={messages.username.isError ? "newchat-error" : "newchat-subtitle"}>{messages.username.text}</p>
         )}
-      </div>
+      </section>
 
       {/* Email */}
-      <div style={{ marginTop: 24 }}>
-        <label className="newchat-subtitle" style={{ display: "block", marginBottom: 6 }}>Email</label>
+      <section className="settings-card">
+        <label className="settings-label">Email</label>
         <div className="newchat-search">
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
-        <button className="newchat-add-button" style={{ marginTop: 8 }} onClick={handleEmailSave} disabled={savingField === "email"}>
+        <button className="newchat-add-button" onClick={handleEmailSave} disabled={savingField === "email"}>
           {savingField === "email" ? "Saving..." : "Save email"}
         </button>
         {messages.email && (
           <p className={messages.email.isError ? "newchat-error" : "newchat-subtitle"}>{messages.email.text}</p>
         )}
-      </div>
+      </section>
 
       {/* Password */}
-      <div style={{ marginTop: 24, marginBottom: 24 }}>
-        <label className="newchat-subtitle" style={{ display: "block", marginBottom: 6 }}>Change password</label>
-        <div className="newchat-search" style={{ marginBottom: 8 }}>
+      <section className="settings-card">
+        <label className="settings-label">Change password</label>
+        <div className="newchat-search settings-gap">
           <input
             type="password"
             placeholder="Current password"
@@ -230,13 +230,13 @@ export default function SettingsPage() {
             onChange={(e) => setNewPassword(e.target.value)}
           />
         </div>
-        <button className="newchat-add-button" style={{ marginTop: 8 }} onClick={handlePasswordSave} disabled={savingField === "password"}>
+        <button className="newchat-add-button" onClick={handlePasswordSave} disabled={savingField === "password"}>
           {savingField === "password" ? "Saving..." : "Save password"}
         </button>
         {messages.password && (
           <p className={messages.password.isError ? "newchat-error" : "newchat-subtitle"}>{messages.password.text}</p>
         )}
-      </div>
+      </section>
     </div>
   );
 }

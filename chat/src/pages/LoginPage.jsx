@@ -75,6 +75,7 @@ export default function LoginPage() {
           placeholder="Your password"
           autoComplete="current-password"
           error={shown("password")}
+          labelAside={<a className="auth-link" href="/forgot-password">Forgot password?</a>}
         />
 
         {slow && <WakingNotice />}
