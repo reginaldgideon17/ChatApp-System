@@ -194,6 +194,8 @@ async function sendEmail({ to, subject, text, html }) {
   if (!response.ok) {
     throw new Error(`Email provider said ${response.status}: ${await response.text()}`);
   }
+  const info = await response.json().catch(() => ({}));
+  console.log(`Email accepted by Brevo for ${to} (id ${info.messageId || 'n/a'}). Check Brevo > Transactional > Logs for delivery.`);
 }
 
 function emailLayout(heading, bodyHtml, buttonText, buttonUrl) {
@@ -216,14 +218,20 @@ app.post('/api/auth/forgot-password', rateLimit(8, 15 * 60 * 1000), async (req, 
   try {
     const found = await pool.query('SELECT id, username, email FROM users WHERE LOWER(email) = LOWER($1)', [email]);
     const user = found.rows[0];
-    if (!user) return reply();
+    if (!user) {
+      console.log('Forgot password: no account matches the email that was typed (check for typos).');
+      return reply();
+    }
 
     // No more than 3 links per hour for one account
     const recent = await pool.query(
       `SELECT COUNT(*)::int AS n FROM password_resets WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 hour'`,
       [user.id]
     );
-    if (recent.rows[0].n >= 3) return reply();
+    if (recent.rows[0].n >= 3) {
+      console.log(`Forgot password: skipped for ${user.email}, already asked 3 times in the last hour.`);
+      return reply();
+    }
 
     const token = crypto.randomBytes(32).toString('hex');
     await pool.query(
@@ -232,6 +240,7 @@ app.post('/api/auth/forgot-password', rateLimit(8, 15 * 60 * 1000), async (req, 
       [user.id, sha256(token), RESET_TOKEN_MINUTES]
     );
 
+    console.log(`Forgot password: creating a reset link for ${user.email}`);
     const frontend = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
     const link = `${frontend}/reset-password?token=${token}`;
     const text =
