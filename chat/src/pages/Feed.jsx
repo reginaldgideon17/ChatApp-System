@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { resizeImage } from "../resizeImage";
 import UserAvatarMenu from "../components/UserAvatarMenu";
 import "../css/Feed.css";
+
 import StatusBar from "./Statusbar.jsx";
 function Icon({ name, size = 24, filled = false }) {
   const common = {
@@ -20,6 +21,7 @@ function Icon({ name, size = 24, filled = false }) {
   if (name === "heart") return <svg {...common}><path d="M20.8 8.7c0 4.3-8.8 10-8.8 10s-8.8-5.7-8.8-10A4.7 4.7 0 0 1 12 6.2a4.7 4.7 0 0 1 8.8 2.5Z" fill={filled ? "currentColor" : "none"} /></svg>;
   if (name === "comment") return <svg {...common}><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z" /></svg>;
   if (name === "image") return <svg {...common}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>;
+  if (name === "share") return <svg {...common}><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" /><path d="m16 6-4-4-4 4" /><path d="M12 2v13" /></svg>;
   if (name === "smile") return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" /></svg>;
   return null;
 }
@@ -37,7 +39,7 @@ function timeAgo(timestamp) {
 function Avatar({ src, name, className }) {
   if (src) return <img className={className} src={src} alt={name} style={{ objectFit: "cover" }} />;
   return (
-    <div className={className} style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "#2563EB", color: "#fff", fontWeight: 700, fontSize: 13 }}>
+    <div className={className} style={{ display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #ff8a52, #ff5a1f)", color: "#fff", fontWeight: 700, fontSize: 13 }}>
       {name ? name.slice(0, 2).toUpperCase() : "?"}
     </div>
   );
@@ -58,6 +60,7 @@ export default function Feed() {
   const fileInputRef = useRef(null);
 
   const [friends, setFriends] = useState([]);
+  const [toast, setToast] = useState("");
 
   const user = JSON.parse(localStorage.getItem("user"));
   const token = localStorage.getItem("token");
@@ -180,6 +183,31 @@ export default function Feed() {
     }
   }
 
+  function showToast(message) {
+    setToast(message);
+    window.setTimeout(() => setToast(""), 2200);
+  }
+
+  // Share a post: the phone/computer share sheet where there is one, otherwise copy the link
+  async function sharePost(post) {
+    const url = `${window.location.origin}/feed#post-${post.id}`;
+    const text = post.caption ? `${post.username}: ${post.caption}` : `A post by ${post.username}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "Morphues", text, url });
+        return;
+      }
+    } catch (err) {
+      if (err && err.name === "AbortError") return; // they closed the share sheet
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast("Link copied");
+    } catch {
+      window.prompt("Copy this link:", url);
+    }
+  }
+
   async function handleImagePick(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -205,6 +233,7 @@ export default function Feed() {
       setCaption("");
       setImagePreview(null);
       setComposerOpen(false);
+      document.querySelectorAll(".composer-input").forEach((el) => { el.style.height = "auto"; });
       fetchPosts();
     } catch (err) {
       setError(err.message);
@@ -213,75 +242,79 @@ export default function Feed() {
     }
   }
 
+  // "Good morning, Reginald": greeting changes with the time of day
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const firstName = (user?.username || "").split(" ")[0];
+
   return (
     <main className="feed-page">
       <div className="feed-layout">
         <section className="feed-main" aria-label="Feed">
-          {/* --- New post composer --- */}
-          <section className="stories-panel">
-            {!composerOpen ? (
-              <button
-                className="icon-button"
-                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "8px 4px", justifyContent: "flex-start" }}
-                onClick={() => setComposerOpen(true)}
-              >
+          <header className="feed-hero">
+            <h1>{greeting}{firstName ? `, ${firstName}` : ""}</h1>
+            <p>Here&apos;s what your friends have been sharing.</p>
+          </header>
+
+          {/* --- New post composer: always open, like a "share something" card --- */}
+          <section className="stories-panel composer">
+            <form onSubmit={handleCreatePost}>
+              <div className="composer-row">
                 <Avatar src={user?.avatar} name={user?.username} className="post-avatar" />
-                <span style={{ color: "var(--feed-muted)", fontSize: 13 }}>Share something...</span>
-              </button>
-            ) : (
-              <form onSubmit={handleCreatePost}>
                 <textarea
+                  className="composer-input"
                   value={caption}
-                  onChange={(e) => setCaption(e.target.value)}
-                  placeholder="What's on your mind?"
-                  rows={3}
-                  style={{
-                    width: "100%",
-                    background: "transparent",
-                    border: "1px solid var(--feed-line)",
-                    borderRadius: 8,
-                    color: "var(--feed-ink)",
-                    padding: 10,
-                    fontFamily: "inherit",
-                    fontSize: 13,
-                    resize: "vertical",
+                  onChange={(e) => {
+                    setCaption(e.target.value);
+                    // grow with the text
+                    e.target.style.height = "auto";
+                    e.target.style.height = `${Math.min(e.target.scrollHeight, 220)}px`;
                   }}
+                  placeholder="Share something with your friends…"
+                  rows={1}
+                  aria-label="Write a post"
                 />
-                {imagePreview && (
-                  <img src={imagePreview} alt="" style={{ width: "100%", borderRadius: 8, marginTop: 8 }} />
-                )}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button type="button" className="icon-button" onClick={() => fileInputRef.current?.click()}>
-                      <Icon name="image" />
-                    </button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImagePick}
-                      style={{ display: "none" }}
-                    />
-                  </div>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button
-                      type="button"
-                      className="follow-label"
-                      onClick={() => {
-                        setComposerOpen(false);
-                        setCaption("");
-                        setImagePreview(null);
-                      }}
-                    >
-                      Cancel
-                    </button>
-                    <button type="submit" className="follow-label" disabled={posting}>
-                      {posting ? "Posting..." : "Post"}
-                    </button>
-                  </div>
+              </div>
+
+              {imagePreview && (
+                <div className="composer-preview">
+                  <img src={imagePreview} alt="Selected photo" />
+                  <button type="button" aria-label="Remove photo" onClick={() => setImagePreview(null)}>✕</button>
                 </div>
-              </form>
-            )}
+              )}
+
+              <div className="composer-chips">
+                <button type="button" className="chip" onClick={() => fileInputRef.current?.click()}>
+                  <Icon name="image" size={16} /> Photo
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImagePick}
+                  style={{ display: "none" }}
+                />
+                <button
+                  type="button"
+                  className="chip"
+                  // opens the same "Your status" flow as the circle on the right
+                  onClick={() => document.querySelector(".feed-stories .status-item")?.click()}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9" strokeDasharray="3 3" />
+                    <circle cx="12" cy="12" r="3.2" />
+                  </svg>
+                  Status
+                </button>
+                <button
+                  type="submit"
+                  className="chip chip-primary"
+                  disabled={posting || (!caption.trim() && !imagePreview)}
+                >
+                  {posting ? "Posting…" : "Post"}
+                </button>
+              </div>
+            </form>
           </section>
 
           {error && <p style={{ color: "#ff5b74", fontSize: 13, margin: "12px 0" }}>{error}</p>}
@@ -299,7 +332,7 @@ export default function Feed() {
 
               return (
                 <article
-                  className={`feed-post${String(highlightedPostId) === String(post.id) ? " feed-post-highlighted" : ""}`}
+                  className={`feed-post${post.image_url ? " feed-post-has-image" : ""}${String(highlightedPostId) === String(post.id) ? " feed-post-highlighted" : ""}`}
                   id={`feed-post-${post.id}`}
                   key={post.id}
                 >
@@ -326,8 +359,11 @@ export default function Feed() {
                         >
                           <Icon name="heart" filled={post.liked_by_me} />
                         </button>
-                        <button className="icon-button" onClick={() => loadComments(post.id)}>
+                        <button className="icon-button" onClick={() => loadComments(post.id)} aria-label="Comments">
                           <Icon name="comment" />
+                        </button>
+                        <button className="icon-button" onClick={() => sharePost(post)} aria-label="Share post">
+                          <Icon name="share" />
                         </button>
                       </div>
                     </div>
@@ -413,6 +449,7 @@ export default function Feed() {
           </section>
         </aside>
       </div>
+      {toast && <div className="feed-toast" role="status">{toast}</div>}
     </main>
   );
 }
