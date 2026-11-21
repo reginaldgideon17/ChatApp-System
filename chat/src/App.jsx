@@ -17,6 +17,7 @@ import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import Feed from './pages/Feed.jsx';
 import NotificationsPage from './pages/NotificationsPage';
+import CameraPage from './pages/CameraPage';
 
 function App() {
   return (
@@ -41,6 +42,7 @@ function App() {
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/new" element={<UserListPage />} />
           <Route path="/chat/:conversationId" element={<ChatPage />} />
+          <Route path="/camera" element={<CameraPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

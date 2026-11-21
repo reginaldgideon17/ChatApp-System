@@ -16,6 +16,8 @@ import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import Feed from './pages/Feed.jsx'
 import NotificationsPage from './pages/NotificationsPage';
+import CameraPage from './pages/CameraPage';
+
 function App() {
   return (
     <BrowserRouter>
@@ -27,19 +29,20 @@ function App() {
   <Route path="/feed" element={<Feed/> }/>
   <Route path="/notifications" element={<NotificationsPage />} />
 
-<Route path='/settings' element={<SettingsPage />} />
-<Route path="/profile" element={<ProfilePage />} />
-<Route path="/profile/:userId" element={<ProfilePage />} />
-<Route path="/create-group" element={<CreateGroup />} />
-<Route path="/groups" element={<GroupsPage />} />
-<Route path="/group/:groupId" element={<GroupChatPage />} />
+  <Route path='/settings' element={<SettingsPage />} />
+  <Route path="/profile" element={<ProfilePage />} />
+  <Route path="/profile/:userId" element={<ProfilePage />} />
+  <Route path="/create-group" element={<CreateGroup />} />
+  <Route path="/groups" element={<GroupsPage />} />
+  <Route path="/group/:groupId" element={<GroupChatPage />} />
   <Route path="/requests" element={<RequestsPage />} />
-    <Route path="/inbox" element={<InboxPage />} />
-    <Route path="/chat" element={<ChatPage />} />
-    <Route path="/new" element={<UserListPage />} />
-    <Route path="/chat/:conversationId" element={<ChatPage />} />
+  <Route path="/inbox" element={<InboxPage />} />
+  <Route path="/chat" element={<ChatPage />} />
+  <Route path="/new" element={<UserListPage />} />
+  <Route path="/chat/:conversationId" element={<ChatPage />} />
+  <Route path="/camera" element={<CameraPage />} />
   </Route>
-</Routes>
+  </Routes>
     </BrowserRouter>
   );      
     
