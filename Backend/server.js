@@ -8,12 +8,16 @@ const http = require('http');
 const { Server } = require('socket.io');
 const crypto = require('crypto');
 const authMiddleware = require('./authMiddleware');
+const { setupPush } = require('./push');
 
 const app = express();
 // Render sits behind a proxy: needed so req.ip is the real visitor (used by the rate limiter)
 app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json({ limit: '15mb' }));
+
+// Web Push + in-app alerts (see push.js)
+const push = setupPush(app, pool, authMiddleware);
 
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
 
@@ -585,6 +589,9 @@ app.post('/api/friends/request', authMiddleware, async (req, res) => {
 
     io.to(`user:${addresseeId}`).emit('newNotification', notif.rows[0]);
     io.to(`user:${addresseeId}`).emit('friendRequestReceived', result.rows[0]); // keep this too, Requests page still needs it
+    push.nameOf(req.userId).then((name) =>
+      push.sendToUser(addresseeId, { title: name, body: 'sent you a friend request', url: '/requests', tag: `fr-${req.userId}` })
+    );
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -670,6 +677,11 @@ app.patch('/api/friends/:friendshipId', authMiddleware, async (req, res) => {
 
     await client.query('COMMIT');
     io.to(`user:${requesterId}`).emit('friendRequestResponded', updated);
+    if (status === 'accepted') {
+      push.nameOf(req.userId).then((name) =>
+        push.sendToUser(requesterId, { title: name, body: 'accepted your friend request', url: '/chat', tag: `fra-${req.userId}` })
+      );
+    }
 
     if (status === 'accepted') {
       io.to(`conversation:${acceptedConversationId}`).emit('newMessage', acceptedConversationMessage);
@@ -817,6 +829,12 @@ app.post('/api/conversations/:conversationId/messages', authMiddleware, async (r
       const { user_one_id, user_two_id } = convo.rows[0];
       const recipientId = user_one_id === req.userId ? user_two_id : user_one_id;
       io.to(`user:${recipientId}`).emit('unreadMessagesChanged');
+      push.sendToUser(recipientId, {
+        title: fullMessage.username,
+        body: push.preview(fullMessage),
+        url: `/chat/${conversationId}`,
+        tag: `chat-${conversationId}`,
+      });
     }
 
     res.status(201).json(fullMessage);
@@ -1110,6 +1128,22 @@ app.post('/api/groups/:groupId/messages', authMiddleware, async (req, res) => {
 
     io.to(`group:${groupId}`).emit('newGroupMessage', fullMessage);
 
+    // alert the other members (group name + who sent it)
+    pool.query(
+      `SELECT g.name, gm.user_id FROM group_members gm
+       JOIN groups g ON g.id = gm.group_id
+       WHERE gm.group_id = $1 AND gm.user_id <> $2`,
+      [groupId, req.userId]
+    ).then((r) => {
+      if (r.rows.length === 0) return;
+      push.sendToUsers(r.rows.map((m) => m.user_id), {
+        title: r.rows[0].name,
+        body: `${fullMessage.username}: ${push.preview(fullMessage)}`,
+        url: `/group/${groupId}`,
+        tag: `group-${groupId}`,
+      });
+    }).catch((err) => console.error('group push error:', err.message));
+
     res.status(201).json(fullMessage);
   } catch (err) {
     console.error('Post group message error:', err);
@@ -1374,6 +1408,9 @@ app.post('/api/posts/:postId/like', authMiddleware, async (req, res) => {
       );
       // push it live, the same way we push new messages
       io.to(`user:${postOwnerId}`).emit('newNotification', notif.rows[0]);
+      push.nameOf(req.userId).then((name) =>
+        push.sendToUser(postOwnerId, { title: name, body: 'liked your post', url: `/feed#post-${postId}`, tag: `like-${postId}` })
+      );
     }
 
     return res.json({ liked: true });
@@ -1407,6 +1444,12 @@ app.post('/api/posts/:postId/comments', authMiddleware, async (req, res) => {
         [postOwnerId, req.userId, postId]
       );
       io.to(`user:${postOwnerId}`).emit('newNotification', notif.rows[0]);
+      push.sendToUser(postOwnerId, {
+        title: userResult.rows[0].username,
+        body: 'commented on your post',
+        url: `/feed#post-${postId}`,
+        tag: `comment-${postId}`,
+      });
     }
 
     res.status(201).json({ ...result.rows[0], username: userResult.rows[0].username });
@@ -1649,6 +1692,7 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*' },
 });
+push.attachIO(io);
 
 const onlineUsers = new Map();
 
@@ -1894,6 +1938,7 @@ async function startServer() {
          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
        )`
     );
+    await push.initPushTable();
     const PORT = process.env.PORT || 3001;
     server.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);

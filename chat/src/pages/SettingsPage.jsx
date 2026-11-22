@@ -3,6 +3,7 @@ import { resizeImage } from "../resizeImage";
 import Avatar from "../components/Avatar";
 import "../css/NewChat.css";
 import { applyTheme, getSavedTheme } from "../theme";
+import NotificationSettings from "../components/NotificationSettings";
 
 export default function SettingsPage() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")));
@@ -170,6 +171,9 @@ export default function SettingsPage() {
           </button>
         </div>
       </section>
+
+      {/* Notifications */}
+      <NotificationSettings />
 
       {/* Avatar */}
       <section className="settings-card settings-profile">
