@@ -9,6 +9,7 @@ const { Server } = require('socket.io');
 const crypto = require('crypto');
 const authMiddleware = require('./authMiddleware');
 const { setupPush } = require('./push');
+const { setupDares } = require('./dares');
 
 const app = express();
 // Render sits behind a proxy: needed so req.ip is the real visitor (used by the rate limiter)
@@ -18,6 +19,9 @@ app.use(express.json({ limit: '15mb' }));
 
 // Web Push + in-app alerts (see push.js)
 const push = setupPush(app, pool, authMiddleware);
+
+// Dares game (see dares.js)
+const dares = setupDares(app, pool, authMiddleware, push);
 
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
 
@@ -1693,6 +1697,7 @@ const io = new Server(server, {
   cors: { origin: '*' },
 });
 push.attachIO(io);
+dares.attachIO(io);
 
 const onlineUsers = new Map();
 
@@ -1939,6 +1944,7 @@ async function startServer() {
        )`
     );
     await push.initPushTable();
+    await dares.initDaresTables();
     const PORT = process.env.PORT || 3001;
     server.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);

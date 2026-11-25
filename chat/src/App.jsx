@@ -17,6 +17,9 @@ import ProfilePage from './pages/ProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import Feed from './pages/Feed.jsx';
 import NotificationsPage from './pages/NotificationsPage';
+import DaresPage from './pages/DaresPage';
+import LivePage from './pages/LivePage';
+import LiveRoomPage from './pages/LiveRoomPage';
 import CameraPage from './pages/CameraPage';
 
 function App() {
@@ -31,6 +34,9 @@ function App() {
         <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route path="/feed" element={<Feed />} />
           <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/dares" element={<DaresPage />} />
+          <Route path="/live" element={<LivePage />} />
+          <Route path="/live/:id" element={<LiveRoomPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/profile/:userId" element={<ProfilePage />} />

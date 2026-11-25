@@ -65,6 +65,19 @@ const FeedIcon = () => (
     <path d="M9 21v-7h6v7" />
   </svg>
 );
+const DaresIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="5" />
+    <circle cx="12" cy="12" r="1" />
+  </svg>
+);
+const LiveIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="2" />
+    <path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19a10 10 0 0 1 0-14" />
+  </svg>
+);
 const CameraIcon = () => (
 <svg
   width="20"
@@ -98,6 +111,8 @@ export default function Layout() {
     if (path === "/inbox") return "Messages";
     if (path === "/new") return "New chat";
     if (path === "/chat") return "Chats";
+    if (path === "/dares") return "Dares";
+    if (path === "/live") return "Live";
     if(path ==='/camera') return "Camera";
     return "";
   })();
@@ -176,18 +191,21 @@ export default function Layout() {
     { to: "/chat", label: "Messages", icon: <ChatIcon />, unreadKey: "messages", hasSubnav: true },
    { to: "/new", label: "New Chat", icon: <AddUserIcon />, unreadKey: "messages", hasSubnav: true },
     { to: "/camera", label: "Camera", icon: <CameraIcon />},
+    { to: "/dares", label: "Dares", icon: <DaresIcon />, unreadKey: "dares" },
+    { to: "/live", label: "Live", icon: <LiveIcon />, unreadKey: "live" },
     { to: "/notifications", label: "Notifications", icon: <BellIcon />, unreadKey: "notifications" },
     { to: "/settings", label: "Settings", icon: <SettingsIcon /> },
    
   ];
 
+  // Mobile bottom bar: Feed, Chats, Dares (middle), Camera, Me.
+  // Notifications stay on the bell in the top header; Settings is one tap from Me.
   const mobileNavItems = [
-    navItems[0],
-    navItems[3],
-    navItems[1],
-    // navItems[3],
-    // navItems[2],
-    // { to: "/profile", label: "Profile", icon: <Avatar src={user?.avatar} name={user?.username} className="tabbar-profile-avatar" /> },
+    navItems.find((i) => i.to === "/feed"),
+    navItems.find((i) => i.to === "/chat"),
+    navItems.find((i) => i.to === "/dares"),
+    navItems.find((i) => i.to === "/camera"),
+    { to: "/profile", label: "Me", icon: <Avatar src={user?.avatar} name={user?.username} className="tabbar-profile-avatar" /> },
   ];
 
   function renderBadge(count, className) {

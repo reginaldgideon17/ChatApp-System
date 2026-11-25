@@ -4,6 +4,7 @@ import Avatar from "../components/Avatar";
 import "../css/NewChat.css";
 import { applyTheme, getSavedTheme } from "../theme";
 import NotificationSettings from "../components/NotificationSettings";
+import DareSettings from "../components/DareSettings";
 
 export default function SettingsPage() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")));
@@ -174,6 +175,9 @@ export default function SettingsPage() {
 
       {/* Notifications */}
       <NotificationSettings />
+
+      {/* Dares */}
+      <DareSettings />
 
       {/* Avatar */}
       <section className="settings-card settings-profile">

@@ -1,0 +1,22 @@
+.live-start{background:var(--d-card);border:1px solid var(--d-line);border-radius:16px;padding:14px;margin-bottom:16px}
+.live-badge{background:#e5213b;color:#fff;border-radius:6px;padding:2px 7px;font-size:.7rem;font-weight:800;letter-spacing:.06em}
+.live-badge-corner{position:absolute;top:10px;left:10px}
+.live-room-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.live-room-title{flex:1;display:flex;flex-direction:column;min-width:0}
+.live-room-title strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.live-end{border-color:#e5213b;color:#e5213b}
+.live-stage{position:relative;background:#000;border-radius:16px;overflow:hidden;aspect-ratio:9/12;max-height:62vh;margin:0 auto}
+.live-video-box{position:absolute;inset:0}
+.live-video{width:100%;height:100%;object-fit:cover}
+.live-video-self{transform:scaleX(-1)}
+.live-audio{display:none}
+.live-float{position:absolute;bottom:10px;font-size:2rem;animation:live-rise 2.4s ease-out forwards;pointer-events:none}
+@keyframes live-rise{to{transform:translateY(-260px);opacity:0}}
+.live-votes{margin-top:12px}
+.live-votebar{height:10px;border-radius:99px;background:#e5213b;overflow:hidden}
+.live-votebar-pass{height:100%;background:#1f9d55;transition:width .3s}
+.live-votecount{display:flex;justify-content:space-between;font-size:.85rem;margin-top:4px}
+.live-reactions{display:flex;gap:8px;margin-top:12px;justify-content:center}
+.live-chat{height:150px;overflow-y:auto;margin-top:12px;border:1px solid var(--d-line);border-radius:12px;padding:8px 10px;font-size:.88rem}
+.live-chat p{margin:0 0 4px;overflow-wrap:anywhere}
+.live-chatform{display:flex;gap:8px;margin-top:8px}

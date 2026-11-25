@@ -1,0 +1,67 @@
+.dares-page{--d-bg:#f7f5f2;--d-card:#fff;--d-text:#1d1b19;--d-muted:#78716c;--d-line:#e7e2dc;--d-accent:#f2681c;--d-accent-text:#fff;--d-ok:#1f9d55;--d-bad:#d33;max-width:760px;margin:0 auto;padding:20px 16px 90px;color:var(--d-text)}
+html[data-theme="dark"] .dares-page{--d-bg:#151413;--d-card:#201f1d;--d-text:#f3f1ee;--d-muted:#a29d97;--d-line:#322f2c}
+.dares-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}
+.dares-header h1{margin:0;font-size:1.6rem}
+.dares-eyebrow{margin:0 0 4px;font-size:.72rem;letter-spacing:.12em;color:var(--d-muted);font-weight:700}
+.dares-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.dares-stats div{background:var(--d-card);border:1px solid var(--d-line);border-radius:14px;padding:12px 6px;text-align:center}
+.dares-stats strong{display:block;font-size:1.2rem}
+.dares-stats span{font-size:.72rem;color:var(--d-muted)}
+.dares-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.dares-badge{background:var(--d-card);border:1px solid var(--d-line);border-radius:999px;padding:4px 10px;font-size:.78rem}
+.dares-tabs{display:flex;gap:4px;border-bottom:1px solid var(--d-line);margin-bottom:14px}
+.dares-tab{background:none;border:0;border-bottom:3px solid transparent;padding:10px 12px;font:inherit;font-weight:600;color:var(--d-muted);cursor:pointer}
+.dares-tab.active{color:var(--d-text);border-bottom-color:var(--d-accent)}
+.dares-tab-badge{margin-left:6px;background:var(--d-accent);color:var(--d-accent-text);border-radius:999px;padding:1px 7px;font-size:.7rem}
+.dares-list{display:flex;flex-direction:column;gap:10px}
+.dare-card{display:flex;gap:12px;align-items:center;text-align:left;width:100%;background:var(--d-card);border:1px solid var(--d-line);border-radius:16px;padding:12px;color:inherit;font:inherit;cursor:pointer}
+.dare-card-avatar{width:44px;height:44px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:var(--d-accent);color:#fff;font-weight:700;object-fit:cover}
+.dare-card-body{min-width:0;flex:1}
+.dare-card-who{margin:0;font-size:.8rem;color:var(--d-muted)}
+.dare-card-text{margin:2px 0 6px;font-weight:600;overflow-wrap:anywhere}
+.dare-card-meta{margin:0;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.78rem;color:var(--d-muted)}
+.dare-pill{border-radius:999px;padding:2px 9px;font-weight:600;background:var(--d-line);color:var(--d-text)}
+.dare-pill-pending,.dare-pill-accepted{background:#ffe9d9;color:#a8450c}
+.dare-pill-submitted{background:#e3ecff;color:#2a4fb0}
+.dare-pill-approved{background:#d9f3e3;color:#17703e}
+.dare-pill-expired,.dare-pill-declined{background:#f1dede;color:#8f2a2a}
+.dare-countdown{color:var(--d-accent);font-weight:700}
+.dares-empty,.dares-muted{color:var(--d-muted)}
+.dares-empty{text-align:center;padding:30px 0}
+.dares-small{font-size:.75rem}
+.dares-btn{border:1px solid var(--d-line);background:var(--d-card);color:var(--d-text);border-radius:12px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}
+.dares-btn-primary{background:var(--d-accent);border-color:var(--d-accent);color:var(--d-accent-text)}
+.dares-btn:disabled{opacity:.5;cursor:not-allowed}
+.dares-link{background:none;border:0;color:var(--d-muted);text-decoration:underline;cursor:pointer;font:inherit;padding:0}
+.dares-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.dares-error{color:var(--d-bad);margin:10px 0 0}
+.dares-notice{color:var(--d-ok);margin:10px 0 0}
+.dares-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;z-index:1000}
+.dares-modal{position:relative;background:var(--d-card,#fff);color:var(--d-text,#222);width:100%;max-width:560px;max-height:90vh;overflow:auto;border-radius:20px 20px 0 0;padding:22px 18px 28px;--d-card:#fff;--d-text:#1d1b19;--d-muted:#78716c;--d-line:#e7e2dc;--d-accent:#f2681c;--d-accent-text:#fff;--d-bad:#d33;--d-ok:#1f9d55}
+html[data-theme="dark"] .dares-modal{--d-card:#201f1d;--d-text:#f3f1ee;--d-muted:#a29d97;--d-line:#322f2c}
+@media(min-width:700px){.dares-overlay{align-items:center}.dares-modal{border-radius:20px}}
+.dares-close{position:absolute;top:10px;right:14px;background:none;border:0;font-size:1.8rem;line-height:1;color:var(--d-muted);cursor:pointer}
+.dares-modal-text{margin:0 0 10px;font-size:1.25rem;overflow-wrap:anywhere}
+.dares-label{margin:16px 0 6px;font-weight:700;font-size:.85rem}
+.dares-input{width:100%;box-sizing:border-box;border:1px solid var(--d-line);background:transparent;color:inherit;border-radius:12px;padding:10px 12px;font:inherit}
+.dares-textarea{min-height:76px;resize:vertical}
+.dares-proof-form{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.dares-proof-wrap{margin-top:14px}
+.dares-proof{width:100%;max-height:360px;object-fit:contain;border-radius:14px;background:#000}
+.dares-proof-audio{width:100%}
+.dares-note{font-style:italic;color:var(--d-muted)}
+.dares-report{margin-top:18px}
+.dares-friends{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.dares-friend{flex:none;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:2px solid transparent;border-radius:14px;padding:6px 8px;color:inherit;font:inherit;font-size:.78rem;cursor:pointer}
+.dares-friend.selected{border-color:var(--d-accent)}
+.dares-friend-avatar{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--d-accent);color:#fff;font-weight:700;object-fit:cover}
+.dares-chips{display:flex;flex-wrap:wrap;gap:8px}
+.dares-chip{border:1px solid var(--d-line);background:transparent;color:inherit;border-radius:999px;padding:7px 13px;font:inherit;font-size:.85rem;cursor:pointer}
+.dares-chip.selected{background:var(--d-accent);border-color:var(--d-accent);color:#fff}
+.dares-ideas{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center}
+.dares-idea{border:1px dashed var(--d-line);background:transparent;color:inherit;border-radius:10px;padding:4px 9px;font:inherit;font-size:.75rem;cursor:pointer;text-align:left}
+.dares-rank{display:flex;align-items:center;gap:12px;background:var(--d-card);border:1px solid var(--d-line);border-radius:14px;padding:10px 12px}
+.dares-rank.me{border-color:var(--d-accent)}
+.dares-rank-n{width:22px;font-weight:800;color:var(--d-muted)}
+.dares-rank-name{flex:1;font-weight:600}
+.dares-rank-pts{font-weight:700}
