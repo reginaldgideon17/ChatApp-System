@@ -24,6 +24,32 @@ function setupLive(app, pool, authMiddleware, push) {
     await pool.query(`UPDATE live_rooms SET status='ended', ended_at=NOW() WHERE status='live'`);
   }
 
+  // pasted values often carry spaces, quotes or line breaks: clean them
+  const clean = (v) => String(v || '').trim().replace(/^["']|["']$/g, '').trim();
+  function lkEnv() {
+    return {
+      LIVEKIT_URL: clean(process.env.LIVEKIT_URL),
+      LIVEKIT_API_KEY: clean(process.env.LIVEKIT_API_KEY),
+      LIVEKIT_API_SECRET: clean(process.env.LIVEKIT_API_SECRET),
+    };
+  }
+
+  // Safe check: shows the SHAPE of your LiveKit settings, never the secret.
+  app.get('/api/live-check', authMiddleware, (req, res) => {
+    const raw = process.env;
+    const e = lkEnv();
+    res.json({
+      urlStartsWithWss: e.LIVEKIT_URL.startsWith('wss://'),
+      url: e.LIVEKIT_URL,
+      keyFirst4: e.LIVEKIT_API_KEY.slice(0, 4),
+      keyLength: e.LIVEKIT_API_KEY.length,
+      secretLength: e.LIVEKIT_API_SECRET.length,
+      keyHadExtraSpaces: String(raw.LIVEKIT_API_KEY || '') !== e.LIVEKIT_API_KEY,
+      secretHadExtraSpaces: String(raw.LIVEKIT_API_SECRET || '') !== e.LIVEKIT_API_SECRET,
+      secretLooksLikeKey: e.LIVEKIT_API_SECRET.startsWith('API'),
+    });
+  });
+
   const validId = (v) => /^\d+$/.test(String(v)) && String(v).length < 16;
 
   async function areFriends(a, b) {
@@ -124,7 +150,7 @@ function setupLive(app, pool, authMiddleware, push) {
   });
 
   app.post('/api/live/:id/token', authMiddleware, async (req, res) => {
-    const { LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET } = process.env;
+    const { LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET } = lkEnv();
     if (!LIVEKIT_URL || !LIVEKIT_API_KEY || !LIVEKIT_API_SECRET) {
       return res.status(503).json({ message: 'Live video is not set up on the server yet.' });
     }
