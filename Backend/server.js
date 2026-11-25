@@ -20,8 +20,10 @@ app.use(express.json({ limit: '15mb' }));
 // Web Push + in-app alerts (see push.js)
 const push = setupPush(app, pool, authMiddleware);
 
+const { setupLive } = require('./live');
 // Dares game (see dares.js)
 const dares = setupDares(app, pool, authMiddleware, push);
+const live = setupLive(app, pool, authMiddleware, push);
 
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
 
@@ -1698,6 +1700,7 @@ const io = new Server(server, {
 });
 push.attachIO(io);
 dares.attachIO(io);
+live.attachIO(io);
 
 const onlineUsers = new Map();
 
@@ -1945,6 +1948,7 @@ async function startServer() {
     );
     await push.initPushTable();
     await dares.initDaresTables();
+    await live.initLiveTables();
     const PORT = process.env.PORT || 3001;
     server.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
