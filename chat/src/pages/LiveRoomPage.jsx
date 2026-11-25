@@ -19,6 +19,8 @@ export default function LiveRoomPage() {
   const chatEnd = useRef(null);
   const socketRef = useRef(null);
   const roomRef = useRef(null);
+  const hostRef = useRef(false);
+  const endedRef = useRef(false);
   const [info, setInfo] = useState(null);
   const [role, setRole] = useState("");
   const [status, setStatus] = useState("Connecting…");
@@ -57,6 +59,7 @@ export default function LiveRoomPage() {
         if (!tokRes.ok) throw new Error(tok.message || "Could not join the live.");
         if (cancelled) return;
         setRole(tok.role);
+        hostRef.current = tok.role === "host";
 
         const socket = io(API, { auth: { token } });
         socketRef.current = socket;
@@ -110,6 +113,11 @@ export default function LiveRoomPage() {
 
     return () => {
       cancelled = true;
+      // the host leaving the page ends the live, so it does not stay in "Live now"
+      if (hostRef.current && !endedRef.current) {
+        endedRef.current = true;
+        fetch(`${API}/api/live/${id}/end`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, keepalive: true }).catch(() => {});
+      }
       socketRef.current?.emit("live:leave", { roomId: id });
       socketRef.current?.disconnect();
       roomRef.current?.disconnect();
@@ -131,6 +139,7 @@ export default function LiveRoomPage() {
   }
 
   async function endLive() {
+    endedRef.current = true;
     await fetch(`${API}/api/live/${id}/end`, { method: "POST", headers: { Authorization: `Bearer ${token}` } });
     navigate(info?.dare_id ? "/dares" : "/live");
   }
