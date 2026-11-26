@@ -3,12 +3,14 @@ import { resizeImage } from "../resizeImage";
 import Avatar from "../components/Avatar";
 import "../css/NewChat.css";
 import { applyTheme, getSavedTheme } from "../theme";
+import { applyStyle, getSavedStyle } from "../style";
 import NotificationSettings from "../components/NotificationSettings";
 import DareSettings from "../components/DareSettings";
 
 export default function SettingsPage() {
   const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")));
   const [theme, setTheme] = useState(getSavedTheme);
+  const [look, setLook] = useState(getSavedStyle);
   const token = localStorage.getItem("token");
 
   const [username, setUsername] = useState(user?.username || "");
@@ -129,6 +131,11 @@ export default function SettingsPage() {
     }
   }
 
+  function handleLookChange(next) {
+    applyStyle(next);
+    setLook(next);
+  }
+
   return (
     <div className="newchat-page">
       <h1 className="newchat-title">Settings</h1>
@@ -169,6 +176,18 @@ export default function SettingsPage() {
               Dark
             </span>
             <span className="appearance-choice-indicator" aria-hidden="true" />
+          </button>
+        </div>
+        <div className="style-choices" role="group" aria-label="App style">
+          <button type="button" className={`style-choice${look === "morph" ? " selected" : ""}`} aria-pressed={look === "morph"} onClick={() => handleLookChange("morph")}>
+            <span className="style-swatch style-swatch-morph" aria-hidden="true"><i /><i /><i /></span>
+            <strong>Morphues</strong>
+            <small>Clean and calm, with orange</small>
+          </button>
+          <button type="button" className={`style-choice${look === "snap" ? " selected" : ""}`} aria-pressed={look === "snap"} onClick={() => handleLookChange("snap")}>
+            <span className="style-swatch style-swatch-snap" aria-hidden="true"><i /><i /><i /></span>
+            <strong>Snap</strong>
+            <small>Bold, yellow and playful</small>
           </button>
         </div>
       </section>
