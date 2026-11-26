@@ -60,13 +60,16 @@ export default function SignupPage() {
   return (
     <AuthShell
       title="Create Account"
-      subtitle="Join the conversation in a minute."
+      subtitle="Create an account to find your people."
+      artTitle="Your people, closer."
+      artSubtitle="Start conversations, share moments and stay connected."
       footer={<>Already have an account? <a href="/">Log in</a></>}
     >
       <form onSubmit={handleSubmit} className="auth-form" noValidate>
         <Field
           id="username"
           label="Username"
+          icon="user"
           type="text"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
@@ -80,6 +83,7 @@ export default function SignupPage() {
         <Field
           id="email"
           label="Email address"
+          icon="mail"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}

@@ -28,19 +28,43 @@ function ThemeToggle() {
   );
 }
 
-// The card that wraps both pages: picture on the left, form on the right.
-export function AuthShell({ title, subtitle, footer, children }) {
+function AuthMark({ className = "" }) {
+  return (
+    <svg className={className} viewBox="0 0 32 32" fill="none" aria-hidden="true">
+      <path d="M16 2.8 27.2 9.2v13.6L16 29.2 4.8 22.8V9.2L16 2.8Z" stroke="currentColor" strokeWidth="1.8" />
+      <path d="m11 9.2 10 13.6M21 9.2 11 22.8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+// The shared split layout keeps the authentication forms consistent.
+export function AuthShell({
+  title,
+  subtitle,
+  footer,
+  artTitle = "Stay close.",
+  artSubtitle = "A thoughtful place to share the little moments that matter.",
+  children,
+}) {
   return (
     <div className="auth-page">
       <ThemeToggle />
       <div className="auth-card">
         <aside className="auth-art">
-          <div className="auth-art-brand">{APP_NAME}</div>
           <AuthArt />
-          <p className="auth-art-tagline">Chat, call and share moments with the people who matter.</p>
+          <a className="auth-art-brand" href="/" aria-label={`${APP_NAME} home`}>
+            <span className="auth-brand-mark"><AuthMark /></span>
+            <span>{APP_NAME}</span>
+          </a>
+          <div className="auth-art-copy">
+            <h2>{artTitle}</h2>
+            <p>{artSubtitle}</p>
+          </div>
+          <p className="auth-art-copyright">© 2026 {APP_NAME}. All rights reserved.</p>
         </aside>
 
         <main className="auth-panel">
+          <div className="auth-panel-mark"><AuthMark /></div>
           <h1 className="auth-title">{title}</h1>
           <p className="auth-subtitle">{subtitle}</p>
           {children}
@@ -52,23 +76,39 @@ export function AuthShell({ title, subtitle, footer, children }) {
 }
 
 // A labelled text box that can show its own error underneath.
-export function Field({ id, label, error, ...inputProps }) {
+function FieldIcon({ icon }) {
+  const paths = {
+    user: <><circle cx="12" cy="8" r="3.5" /><path d="M5 20a7 7 0 0 1 14 0" /></>,
+    mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m4 7 8 6 8-6" /></>,
+    lock: <><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /><path d="M12 14v3" /></>,
+  };
+  return (
+    <svg className="auth-input-leading" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {paths[icon]}
+    </svg>
+  );
+}
+
+export function Field({ id, label, error, icon, ...inputProps }) {
   return (
     <div className="auth-field">
       <label htmlFor={id}>{label}</label>
-      <input
-        id={id}
-        aria-invalid={error ? "true" : "false"}
-        aria-describedby={error ? `${id}-error` : undefined}
-        {...inputProps}
-      />
+      <div className="auth-input-wrap">
+        {icon && <FieldIcon icon={icon} />}
+        <input
+          id={id}
+          aria-invalid={error ? "true" : "false"}
+          aria-describedby={error ? `${id}-error` : undefined}
+          {...inputProps}
+        />
+      </div>
       {error && <p className="auth-field-error" id={`${id}-error`}>{error}</p>}
     </div>
   );
 }
 
 // Same as Field, but with the show/hide eye. `children` is shown under the box (e.g. strength bar).
-export function PasswordField({ id, label, error, children, labelAside, ...inputProps }) {
+export function PasswordField({ id, label, error, children, labelAside, icon = "lock", ...inputProps }) {
   const [show, setShow] = useState(false);
   return (
     <div className="auth-field">
@@ -76,7 +116,8 @@ export function PasswordField({ id, label, error, children, labelAside, ...input
         <label htmlFor={id}>{label}</label>
         {labelAside}
       </div>
-      <div className="auth-password">
+      <div className="auth-password auth-input-wrap">
+        <FieldIcon icon={icon} />
         <input
           id={id}
           type={show ? "text" : "password"}
@@ -135,6 +176,11 @@ export function SubmitButton({ loading, idle, busy }) {
     <button type="submit" className="auth-button" disabled={loading}>
       {loading && <span className="auth-spinner" aria-hidden="true" />}
       {loading ? busy : idle}
+      {!loading && (
+        <svg className="auth-button-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M5 12h14M13 6l6 6-6 6" />
+        </svg>
+      )}
     </button>
   );
 }

@@ -48,14 +48,17 @@ export default function LoginPage() {
 
   return (
     <AuthShell
-      title="Welcome back"
-      subtitle="Log in to keep the conversation going."
+      title="Log in"
+      subtitle="Log in to your account to continue."
+      artTitle="Welcome back."
+      artSubtitle="Glad to see you again. Let's continue where you left off."
       footer={<>Don't have an account? <a href="/signup">Sign up</a></>}
     >
       <form onSubmit={handleSubmit} className="auth-form" noValidate>
         <Field
           id="email"
           label="Email address"
+          icon="mail"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
