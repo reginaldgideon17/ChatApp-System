@@ -1,16 +1,16 @@
 import { useState } from "react";
+import { Link, useOutletContext } from "react-router-dom";
 import { resizeImage } from "../resizeImage";
 import Avatar from "../components/Avatar";
 import "../css/NewChat.css";
 import { applyTheme, getSavedTheme } from "../theme";
-import { applyStyle, getSavedStyle } from "../style";
 import NotificationSettings from "../components/NotificationSettings";
 import DareSettings from "../components/DareSettings";
 
 export default function SettingsPage() {
+  const { handleLogout } = useOutletContext();
   const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")));
   const [theme, setTheme] = useState(getSavedTheme);
-  const [look, setLook] = useState(getSavedStyle);
   const token = localStorage.getItem("token");
 
   const [username, setUsername] = useState(user?.username || "");
@@ -131,20 +131,20 @@ export default function SettingsPage() {
     }
   }
 
-  function handleLookChange(next) {
-    applyStyle(next);
-    setLook(next);
-  }
-
   return (
-    <div className="newchat-page">
-      <h1 className="newchat-title">Settings</h1>
-      <p className="newchat-subtitle">Manage your profile and account.</p>
+    <div className="newchat-page settings-page">
+      <header className="settings-page-heading">
+        <Link to="/profile" className="settings-back-link" aria-label="Back to profile">‹</Link>
+        <div>
+          <h1>Settings</h1>
+          <p>Manage your profile and account.</p>
+        </div>
+      </header>
 
       <section className="appearance-settings" aria-labelledby="appearance-title">
         <div>
           <h2 id="appearance-title">Appearance</h2>
-          <p>Choose the look you prefer for Morphues.</p>
+          <p>Choose light or dark mode for Morphues.</p>
         </div>
         <div className="appearance-options" role="group" aria-label="Color mode">
           <button
@@ -157,7 +157,12 @@ export default function SettingsPage() {
               <i /><i /><i />
             </span>
             <span className="appearance-choice-label">
-              <span className="appearance-choice-icon" aria-hidden="true">☀</span>
+              <span className="appearance-choice-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" />
+                </svg>
+              </span>
               Light
             </span>
             <span className="appearance-choice-indicator" aria-hidden="true" />
@@ -172,35 +177,83 @@ export default function SettingsPage() {
               <i /><i /><i />
             </span>
             <span className="appearance-choice-label">
-              <span className="appearance-choice-icon" aria-hidden="true">☾</span>
+              <span className="appearance-choice-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20.9 13A9 9 0 0 1 11 3.1 9 9 0 1 0 20.9 13Z" />
+                </svg>
+              </span>
               Dark
             </span>
             <span className="appearance-choice-indicator" aria-hidden="true" />
           </button>
         </div>
-        <div className="style-choices" role="group" aria-label="App style">
-          <button type="button" className={`style-choice${look === "morph" ? " selected" : ""}`} aria-pressed={look === "morph"} onClick={() => handleLookChange("morph")}>
-            <span className="style-swatch style-swatch-morph" aria-hidden="true"><i /><i /><i /></span>
-            <strong>Morphues</strong>
-            <small>Clean and calm, with orange</small>
+      </section>
+
+      <NotificationSettings />
+
+      <DareSettings />
+
+      <section className="settings-card settings-account-group" aria-labelledby="account-details-title">
+        <h2 id="account-details-title">Account details</h2>
+        <div className="settings-account-item">
+          <label className="settings-label">Username</label>
+          <div className="newchat-search">
+            <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} />
+          </div>
+          <button type="button" className="newchat-add-button" onClick={handleUsernameSave} disabled={savingField === "username"}>
+            {savingField === "username" ? "Saving..." : "Save username"}
           </button>
-          <button type="button" className={`style-choice${look === "snap" ? " selected" : ""}`} aria-pressed={look === "snap"} onClick={() => handleLookChange("snap")}>
-            <span className="style-swatch style-swatch-snap" aria-hidden="true"><i /><i /><i /></span>
-            <strong>Snap</strong>
-            <small>Bold, yellow and playful</small>
+          {messages.username && (
+            <p className={messages.username.isError ? "newchat-error" : "newchat-subtitle"}>{messages.username.text}</p>
+          )}
+        </div>
+
+        <div className="settings-account-item">
+          <label className="settings-label">Email</label>
+          <div className="newchat-search">
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+          <button type="button" className="newchat-add-button" onClick={handleEmailSave} disabled={savingField === "email"}>
+            {savingField === "email" ? "Saving..." : "Save email"}
           </button>
+          {messages.email && (
+            <p className={messages.email.isError ? "newchat-error" : "newchat-subtitle"}>{messages.email.text}</p>
+          )}
+        </div>
+
+        <div className="settings-account-item">
+          <label className="settings-label">Change password</label>
+          <div className="newchat-search settings-gap">
+            <input
+              type="password"
+              placeholder="Current password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
+          </div>
+          <div className="newchat-search">
+            <input
+              type="password"
+              placeholder="New password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+          </div>
+          <button type="button" className="newchat-add-button" onClick={handlePasswordSave} disabled={savingField === "password"}>
+            {savingField === "password" ? "Saving..." : "Save password"}
+          </button>
+          {messages.password && (
+            <p className={messages.password.isError ? "newchat-error" : "newchat-subtitle"}>{messages.password.text}</p>
+          )}
         </div>
       </section>
 
-      {/* Notifications */}
-      <NotificationSettings />
-
-      {/* Dares */}
-      <DareSettings />
-
-      {/* Avatar */}
-      <section className="settings-card settings-profile">
+      <section className="settings-card settings-profile" aria-label="Profile photo">
         <Avatar src={user?.avatar} name={user?.username} className="newchat-avatar" style={{ width: 72, height: 72, fontSize: 22 }} />
+        <div className="settings-profile-copy">
+          <strong>Profile photo</strong>
+          <span>Choose a photo your friends will recognize.</span>
+        </div>
         <label className="newchat-add-button">
           {uploading ? "Uploading..." : "Change photo"}
           <input type="file" accept="image/*" onChange={handleFileChange} style={{ display: "none" }} disabled={uploading} />
@@ -210,60 +263,13 @@ export default function SettingsPage() {
         <p className={messages.avatar.isError ? "newchat-error" : "newchat-subtitle"}>{messages.avatar.text}</p>
       )}
 
-      {/* Username */}
-      <section className="settings-card">
-        <label className="settings-label">Username</label>
-        <div className="newchat-search">
-          <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} />
-        </div>
-        <button className="newchat-add-button" onClick={handleUsernameSave} disabled={savingField === "username"}>
-          {savingField === "username" ? "Saving..." : "Save username"}
-        </button>
-        {messages.username && (
-          <p className={messages.username.isError ? "newchat-error" : "newchat-subtitle"}>{messages.username.text}</p>
-        )}
-      </section>
-
-      {/* Email */}
-      <section className="settings-card">
-        <label className="settings-label">Email</label>
-        <div className="newchat-search">
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </div>
-        <button className="newchat-add-button" onClick={handleEmailSave} disabled={savingField === "email"}>
-          {savingField === "email" ? "Saving..." : "Save email"}
-        </button>
-        {messages.email && (
-          <p className={messages.email.isError ? "newchat-error" : "newchat-subtitle"}>{messages.email.text}</p>
-        )}
-      </section>
-
-      {/* Password */}
-      <section className="settings-card">
-        <label className="settings-label">Change password</label>
-        <div className="newchat-search settings-gap">
-          <input
-            type="password"
-            placeholder="Current password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-          />
-        </div>
-        <div className="newchat-search">
-          <input
-            type="password"
-            placeholder="New password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-          />
-        </div>
-        <button className="newchat-add-button" onClick={handlePasswordSave} disabled={savingField === "password"}>
-          {savingField === "password" ? "Saving..." : "Save password"}
-        </button>
-        {messages.password && (
-          <p className={messages.password.isError ? "newchat-error" : "newchat-subtitle"}>{messages.password.text}</p>
-        )}
-      </section>
+      <button type="button" className="settings-logout-button" onClick={handleLogout}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M10 17l5-5-5-5M15 12H3" />
+          <path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7" />
+        </svg>
+        Log out
+      </button>
     </div>
   );
 }

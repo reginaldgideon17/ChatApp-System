@@ -123,7 +123,13 @@ app.post('/api/auth/login', async (req, res) => {
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1d' });
     return res.json({
       token,
-      user: { id: user.id, username: user.username, email: user.email ,avatar:user.avatar}
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar,
+        cover_image: user.cover_image,
+      }
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -145,7 +151,7 @@ app.post('/api/auth/signup', async (req, res) => {
     const result = await pool.query(
       `INSERT INTO users (username, email, password_hash,avatar)
        VALUES ($1, $2, $3, $4)
-       RETURNING id, username, email, avatar`,
+       RETURNING id, username, email, avatar, cover_image`,
       [username, email, passwordHash, null]
     );
     const user = result.rows[0];
@@ -378,7 +384,7 @@ app.get('/api/users/:userId/profile', authMiddleware, async (req, res) => {
 
     const [profileResult, postsResult, statusesResult, friendsResult] = await Promise.all([
       pool.query(
-        'SELECT id, username, avatar FROM users WHERE id = $1',
+        'SELECT id, username, avatar, cover_image FROM users WHERE id = $1',
         [profileUserId]
       ),
       pool.query(
@@ -1278,6 +1284,26 @@ catch(err){
   res.status(500).json({ message: 'Internal server error.' });
 }
 })
+
+app.patch('/api/users/cover', authMiddleware, async (req, res) => {
+  const { coverImage } = req.body;
+  const imagePattern = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/;
+
+  if (typeof coverImage !== 'string' || !imagePattern.test(coverImage)) {
+    return res.status(400).json({ message: 'A valid JPEG cover image is required.' });
+  }
+  if (coverImage.length > 4 * 1024 * 1024) {
+    return res.status(413).json({ message: 'Cover images must be 3 MB or smaller.' });
+  }
+
+  try {
+    await pool.query('UPDATE users SET cover_image = $1 WHERE id = $2', [coverImage, req.userId]);
+    return res.status(200).json({ message: 'Cover image updated successfully.' });
+  } catch (err) {
+    console.error('Update cover image error:', err);
+    return res.status(500).json({ message: 'Internal server error.' });
+  }
+});
 // Update username
 app.patch('/api/users/username', authMiddleware, async (req, res) => {
   const { username } = req.body;
@@ -1927,6 +1953,7 @@ socket.on('stopTyping', ({ conversationId, groupId }) => {
 
 async function startServer() {
   try {
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS cover_image TEXT');
     await pool.query(
       `CREATE TABLE IF NOT EXISTS message_attachments (
          message_id BIGINT PRIMARY KEY REFERENCES messages(id) ON DELETE CASCADE,

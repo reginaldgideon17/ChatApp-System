@@ -1,10 +1,76 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router-dom";
-import { resizeImage } from "../resizeImage";
+import { resizeCoverImage, resizeImage } from "../resizeImage";
 import Avatar from "../components/Avatar";
 import "../css/Profile.css";
 
 const API_URL = "https://chatapp-system-mbzq.onrender.com";
+
+const profileIcons = {
+  camera: (
+    <>
+      <path d="M14 4h-4L8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" />
+      <circle cx="12" cy="13" r="3" />
+    </>
+  ),
+  friends: (
+    <>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+    </>
+  ),
+  trophy: (
+    <>
+      <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z" />
+      <path d="M7 6H4v2a4 4 0 0 0 4 4M17 6h3v2a4 4 0 0 1-4 4" />
+    </>
+  ),
+  posts: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <path d="m21 15-5-5L5 21" />
+    </>
+  ),
+  settings: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.6 2.8-.2-.1a1.7 1.7 0 0 0-1.9.2 1.7 1.7 0 0 0-.8 1.5v.2h-3.2v-.2a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.8.2l-.2.1-1.6-2.8.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H6v-3.2h.2a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.2-1.8l-.1-.2 2.8-1.6.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V6h3.2v.2a1.7 1.7 0 0 0 1.1 1.6 1.7 1.7 0 0 0 1.8-.2l.2-.1 1.6 2.8-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2v3.2h-.2a1.7 1.7 0 0 0-1.5-1.5Z" />
+    </>
+  ),
+  logout: (
+    <>
+      <path d="M10 17l5-5-5-5M15 12H3" />
+      <path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7" />
+    </>
+  ),
+  chevron: <path d="m9 18 6-6-6-6" />,
+  streak: (
+    <>
+      <path d="M12 22c4.4 0 7-3 7-7.2 0-2.5-1.2-4.2-3.4-6.3.2 2-1 3.2-2.6 4.1.1-3.6-1.8-6.4-5.3-9.6.1 3.2-.3 4.4-1.5 6-1.7 2.2-2.2 3.7-2.2 5.8C4 18.9 7 22 12 22Z" />
+      <path d="M12 18a2 2 0 0 0 2-2c0-1-.5-1.8-1.5-2.8-.2 1-.7 1.3-1.4 1.8-.7.5-1.1 1-1.1 1.7a2 2 0 0 0 2 1.3Z" />
+    </>
+  ),
+  plus: <path d="M12 5v14M5 12h14" />,
+};
+
+function ProfileIcon({ name }) {
+  return (
+    <svg
+      className={`profile-icon profile-icon-${name}`}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {profileIcons[name]}
+    </svg>
+  );
+}
 
 function formatDate(timestamp) {
   return new Date(timestamp).toLocaleDateString([], { month: "short", day: "numeric" });
@@ -18,6 +84,8 @@ export default function ProfilePage() {
   const [profileUser, setProfileUser] = useState(null);
   const [posts, setPosts] = useState([]);
   const [statuses, setStatuses] = useState([]);
+  const [dareStats, setDareStats] = useState(null);
+  const [dareStatsError, setDareStatsError] = useState("");
   const [friendCount, setFriendCount] = useState(0);
   const [friends, setFriends] = useState([]);
   const [friendsAvailable, setFriendsAvailable] = useState(true);
@@ -28,7 +96,9 @@ export default function ProfilePage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const coverInputRef = useRef(null);
   const token = localStorage.getItem("token");
   const viewedUserId = userId || currentUser?.id;
   const isOwnProfile = Number(viewedUserId) === Number(currentUser?.id);
@@ -39,6 +109,8 @@ export default function ProfilePage() {
     setProfileUser(isOwnProfile ? currentUser : null);
     setPosts([]);
     setStatuses([]);
+    setDareStats(null);
+    setDareStatsError("");
     setFriendCount(0);
     setFriends([]);
     setFriendsAvailable(true);
@@ -129,6 +201,30 @@ export default function ProfilePage() {
     fetchProfileContent();
   }, [fetchProfileContent]);
 
+  useEffect(() => {
+    if (!isOwnProfile) return undefined;
+
+    let active = true;
+    fetch(`${API_URL}/api/dares/stats`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((response) => {
+        if (!response.ok) throw new Error("Could not load dare statistics.");
+        return response.json();
+      })
+      .then((stats) => {
+        if (active) setDareStats(stats);
+      })
+      .catch((statsError) => {
+        if (active) {
+          setDareStats(null);
+          setDareStatsError(statsError.message || "Could not load dare statistics.");
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isOwnProfile, token]);
+
   async function handleFileChange(event) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -156,6 +252,48 @@ export default function ProfilePage() {
       setError(uploadError.message || "Failed to update profile photo.");
     } finally {
       setUploading(false);
+      event.target.value = "";
+    }
+  }
+
+  async function handleCoverChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setError("");
+    if (!file.type.startsWith("image/")) {
+      setError("Choose an image file for your cover.");
+      event.target.value = "";
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError("Cover images must be 10 MB or smaller.");
+      event.target.value = "";
+      return;
+    }
+
+    setCoverUploading(true);
+    try {
+      const coverImage = await resizeCoverImage(file);
+      const response = await fetch(`${API_URL}/api/users/cover`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ coverImage }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "Failed to update cover image.");
+
+      const updatedUser = { ...currentUser, cover_image: coverImage };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      setCurrentUser(updatedUser);
+      setProfileUser(updatedUser);
+    } catch (uploadError) {
+      setError(uploadError.message || "Failed to update cover image.");
+    } finally {
+      setCoverUploading(false);
       event.target.value = "";
     }
   }
@@ -259,6 +397,32 @@ export default function ProfilePage() {
     <main className="profile-page">
       <div className="profile-shell">
         <section className="profile-card" aria-label={isOwnProfile ? "Your profile" : `${profileUser?.username || "User"}'s profile`}>
+          <div className="profile-cover">
+            {profileUser?.cover_image && <img src={profileUser.cover_image} alt="" className="profile-cover-image" />}
+            {isOwnProfile && (
+              <>
+                <button
+                  type="button"
+                  className="profile-cover-edit"
+                  onClick={() => coverInputRef.current?.click()}
+                  disabled={coverUploading}
+                  aria-label={coverUploading ? "Uploading cover photo" : "Change cover photo"}
+                  title={coverUploading ? "Uploading..." : "Change cover photo"}
+                >
+                  <ProfileIcon name="camera" />
+                </button>
+                <input
+                  ref={coverInputRef}
+                  className="profile-cover-input"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCoverChange}
+                  disabled={coverUploading}
+                  tabIndex={-1}
+                />
+              </>
+            )}
+          </div>
           <div className="profile-identity">
             <div className={`profile-avatar-wrap${statuses.length ? " has-active-status" : ""}`}>
               <Avatar src={profileUser?.avatar} name={profileUser?.username} className="profile-avatar" />
@@ -299,8 +463,16 @@ export default function ProfilePage() {
             </div>
             <div className="profile-identity-copy">
               <h1>{profileUser?.username || (loading ? "Loading profile…" : "Profile")}</h1>
-              <p>{isOwnProfile ? profileUser?.email : `@${profileUser?.username || ""}`}</p>
-              <span>{isOwnProfile ? "Welcome to your Morphues profile." : "Profile and recent posts"}</span>
+              <p>@{profileUser?.username || ""}</p>
+              <span className={isOwnProfile ? "profile-streak" : undefined}>
+                {isOwnProfile
+                  ? dareStatsError
+                    ? "Dare stats unavailable"
+                    : dareStats
+                    ? <><ProfileIcon name="streak" /> {dareStats.streak}-day streak</>
+                    : "Loading dare stats…"
+                  : "Profile and recent posts"}
+              </span>
             </div>
             {isOwnProfile ? <button
               type="button"
@@ -331,7 +503,11 @@ export default function ProfilePage() {
           </div>
 
           <div className="profile-stats" aria-label="Profile statistics">
-            <div><strong>{posts.length}</strong><span>Posts</span></div>
+            {isOwnProfile ? (
+              <div><strong>{dareStats?.completed ?? "—"}</strong><span>Dares</span></div>
+            ) : (
+              <div><strong>{posts.length}</strong><span>Posts</span></div>
+            )}
             <button
               type="button"
               className="profile-friends-stat"
@@ -341,8 +517,13 @@ export default function ProfilePage() {
             >
               <strong>{friendCount ?? "—"}</strong><span>Friends</span>
             </button>
-            <div><strong>{statuses.length}</strong><span>Active status</span></div>
+            {isOwnProfile ? (
+              <div><strong>{dareStats?.points ?? "—"}</strong><span>Points</span></div>
+            ) : (
+              <div><strong>{statuses.length}</strong><span>Active status</span></div>
+            )}
           </div>
+          {isOwnProfile && dareStatsError && <p className="profile-stats-error" role="status">{dareStatsError}</p>}
 
           <div className="profile-highlights">
             <div className="profile-highlights-heading">
@@ -352,7 +533,7 @@ export default function ProfilePage() {
             <div className="profile-highlight-list">
               {statuses.length === 0 ? (
                 <div className="profile-highlight-empty">
-                  <span className="profile-highlight-add" aria-hidden="true">+</span>
+                  <span className="profile-highlight-add"><ProfileIcon name="plus" /></span>
                   <span>No active status</span>
                 </div>
               ) : statuses.slice(0, 6).map((status) => (
@@ -373,15 +554,33 @@ export default function ProfilePage() {
         </section>
 
         {isOwnProfile && <section className="profile-mobile-actions" aria-label="Profile and account options">
+          <Link to="/requests">
+            <span className="profile-mobile-action-icon"><ProfileIcon name="friends" /></span>
+            <span><strong>Friends &amp; requests</strong><small>Manage your friends and requests</small></span>
+            <span className="profile-mobile-action-arrow"><ProfileIcon name="chevron" /></span>
+          </Link>
+          <Link to="/dares">
+            <span className="profile-mobile-action-icon"><ProfileIcon name="trophy" /></span>
+            <span><strong>Badges &amp; ranks</strong><small>Your achievements and leaderboard</small></span>
+            <span className="profile-mobile-action-arrow"><ProfileIcon name="chevron" /></span>
+          </Link>
+          <button type="button" onClick={() => {
+            setActiveTab("posts");
+            document.getElementById("profile-content")?.scrollIntoView({ behavior: "smooth" });
+          }}>
+            <span className="profile-mobile-action-icon"><ProfileIcon name="posts" /></span>
+            <span><strong>My posts</strong><small>Photos and updates you have shared</small></span>
+            <span className="profile-mobile-action-arrow"><ProfileIcon name="chevron" /></span>
+          </button>
           <Link to="/settings">
-            <span className="profile-mobile-action-icon" aria-hidden="true">⚙</span>
+            <span className="profile-mobile-action-icon"><ProfileIcon name="settings" /></span>
             <span><strong>Settings</strong><small>Appearance and account preferences</small></span>
-            <span className="profile-mobile-action-arrow" aria-hidden="true">›</span>
+            <span className="profile-mobile-action-arrow"><ProfileIcon name="chevron" /></span>
           </Link>
           <button type="button" onClick={handleLogout}>
-            <span className="profile-mobile-action-icon logout" aria-hidden="true">↪</span>
+            <span className="profile-mobile-action-icon logout"><ProfileIcon name="logout" /></span>
             <span><strong>Log out</strong><small>Sign out of your account</small></span>
-            <span className="profile-mobile-action-arrow" aria-hidden="true">›</span>
+            <span className="profile-mobile-action-arrow"><ProfileIcon name="chevron" /></span>
           </button>
         </section>}
 
@@ -435,7 +634,7 @@ export default function ProfilePage() {
           </div>
         )}
 
-        <section className="profile-content">
+        <section className="profile-content" id="profile-content">
           <div className="profile-tabs" role="tablist" aria-label="Profile content">
             <button
               type="button"

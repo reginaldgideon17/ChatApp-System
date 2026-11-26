@@ -682,7 +682,7 @@ html body .feed-page .composer-preview button {
   cursor: pointer;
 }
 
-html body .feed-page .composer-chips { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-left: 56px; }
+html body .feed-page .composer-chips { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding-left: 56px; }
 html body .feed-page .chip {
   display: inline-flex;
   align-items: center;

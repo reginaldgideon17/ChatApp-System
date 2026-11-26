@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { resizeImage } from "../resizeImage";
 import UserAvatarMenu from "../components/UserAvatarMenu";
 import "../css/Feed.css";
@@ -21,6 +21,8 @@ function Icon({ name, size = 24, filled = false }) {
   if (name === "heart") return <svg {...common}><path d="M20.8 8.7c0 4.3-8.8 10-8.8 10s-8.8-5.7-8.8-10A4.7 4.7 0 0 1 12 6.2a4.7 4.7 0 0 1 8.8 2.5Z" fill={filled ? "currentColor" : "none"} /></svg>;
   if (name === "comment") return <svg {...common}><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z" /></svg>;
   if (name === "image") return <svg {...common}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>;
+  if (name === "camera") return <svg {...common}><path d="M14 4h-4l-2 3H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" /><circle cx="12" cy="13" r="3" /></svg>;
+  if (name === "dare") return <svg {...common}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></svg>;
   if (name === "share") return <svg {...common}><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" /><path d="m16 6-4-4-4 4" /><path d="M12 2v13" /></svg>;
   if (name === "smile") return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" /></svg>;
   return null;
@@ -47,6 +49,7 @@ function Avatar({ src, name, className }) {
 
 export default function Feed() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState([]);
   const [highlightedPostId, setHighlightedPostId] = useState(null);
   const [error, setError] = useState("");
@@ -287,6 +290,9 @@ export default function Feed() {
                 <button type="button" className="chip" onClick={() => fileInputRef.current?.click()}>
                   <Icon name="image" size={16} /> Photo
                 </button>
+                <button type="button" className="chip" onClick={() => navigate("/camera")}>
+                  <Icon name="camera" size={16} /> Camera
+                </button>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -305,6 +311,9 @@ export default function Feed() {
                     <circle cx="12" cy="12" r="3.2" />
                   </svg>
                   Status
+                </button>
+                <button type="button" className="chip" onClick={() => navigate("/dares")}>
+                  <Icon name="dare" size={16} /> Dare
                 </button>
                 <button
                   type="submit"

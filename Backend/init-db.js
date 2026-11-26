@@ -43,8 +43,11 @@ async function initializeSchema() {
       email VARCHAR(255) NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       avatar TEXT,
+      cover_image TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS cover_image TEXT;
 
     CREATE TABLE IF NOT EXISTS friendships (
       id BIGSERIAL PRIMARY KEY,

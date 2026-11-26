@@ -27,6 +27,20 @@ const BellIcon = () => (
   </svg>
 );
 
+const ComposeIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="m22 2-7 20-4-9-9-4Z" />
+    <path d="M22 2 11 13" />
+  </svg>
+);
+
+const DiscoverIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="9" />
+    <path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8 4.8-2.2Z" />
+  </svg>
+);
+
 const LogoutIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -102,8 +116,7 @@ export default function Layout() {
   const mobilePageTitle = (() => {
     const path = location.pathname;
     if (path === "/feed") return "Feed";
-    if (path === "/notifications") return "Notifications";
-    if (path === "/settings") return "Settings";
+    if (path === "/notifications" || path === "/settings") return "";
     if (path === "/profile" || path.startsWith("/profile/")) return "Profile";
     if (path === "/create-group") return "Create group";
     if (path === "/groups") return "Groups";
@@ -112,7 +125,7 @@ export default function Layout() {
     if (path === "/new") return "New chat";
     if (path === "/chat") return "Chats";
     if (path === "/dares") return "Dares";
-    if (path === "/live") return "Live";
+    if (path === "/live") return "Discover";
     if(path ==='/camera') return "Camera";
     return "";
   })();
@@ -198,14 +211,12 @@ export default function Layout() {
    
   ];
 
-  // Mobile bottom bar: Feed, Chats, Dares (middle), Camera, Me.
-  // Notifications stay on the bell in the top header; Settings is one tap from Me.
   const mobileNavItems = [
-    navItems.find((i) => i.to === "/feed"),
-    navItems.find((i) => i.to === "/chat"),
-    navItems.find((i) => i.to === "/dares"),
-    navItems.find((i) => i.to === "/camera"),
-    { to: "/profile", label: "Me", icon: <Avatar src={user?.avatar} name={user?.username} className="tabbar-profile-avatar" /> },
+    { to: "/feed", label: "Feed", icon: <FeedIcon /> },
+    { to: "/live", label: "Discover", icon: <DiscoverIcon /> },
+    { to: "/dares", label: "Dares", icon: <DaresIcon />, unreadKey: "dares", isCenter: true },
+    { to: "/chat", label: "Chats", icon: <ChatIcon />, unreadKey: "messages" },
+    { to: "/profile", label: "Profile", icon: <Avatar src={user?.avatar} name={user?.username} className="tabbar-profile-avatar" /> },
   ];
 
   function renderBadge(count, className) {
@@ -273,8 +284,8 @@ export default function Layout() {
               <BellIcon />
               {renderBadge(unreadCounts.notifications, "mobile-header-badge")}
             </Link>
-            <Link to="/profile" className="mobile-app-header-profile" aria-label="Open profile">
-              <Avatar src={user?.avatar} name={user?.username} className="mobile-app-header-avatar" />
+            <Link to="/new" className="mobile-app-header-compose" aria-label="Start a new conversation" title="Start a new conversation">
+              <ComposeIcon />
             </Link>
            
           </header>
@@ -288,10 +299,11 @@ export default function Layout() {
             key={item.to}
             to={item.to}
             aria-label={item.label}
-            className={({ isActive }) => (isActive ? "tabbar-link active" : "tabbar-link")}
+            className={({ isActive }) => `tabbar-link${item.isCenter ? " tabbar-link-center" : ""}${isActive ? " active" : ""}`}
           >
             {item.icon}
             {item.unreadKey && renderBadge(unreadCounts[item.unreadKey], "tabbar-badge")}
+            <span className="tabbar-label">{item.label}</span>
           </NavLink>
         ))}
       </nav>

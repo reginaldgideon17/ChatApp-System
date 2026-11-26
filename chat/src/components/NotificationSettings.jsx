@@ -19,6 +19,7 @@ export default function NotificationSettings() {
   }, []);
 
   const iosNeedsInstall = isIOS() && !isInstalledApp();
+  const canToggle = state === "on" || state === "off";
 
   async function turnOn() {
     setBusy(true);
@@ -52,14 +53,27 @@ export default function NotificationSettings() {
   }
 
   return (
-    <section className="settings-card">
-      <label className="settings-label">Notifications</label>
-      <p className="newchat-subtitle">
-        Get alerted about new messages, friend requests, likes and comments, even when Morphues is closed.
-      </p>
+    <section className="settings-card settings-notifications" aria-labelledby="notification-settings-title">
+      <div className="settings-notification-row">
+        <div>
+          <h2 id="notification-settings-title">Notifications</h2>
+          <p>Messages, dares, likes and friend requests · {state === "on" ? "On" : state === "off" ? "Off" : state === "loading" ? "Checking" : "Unavailable"}</p>
+        </div>
+        <button
+          type="button"
+          className="settings-notification-switch"
+          role="switch"
+          aria-checked={state === "on"}
+          aria-label={state === "on" ? "Turn notifications off" : "Turn notifications on"}
+          disabled={busy || !canToggle || (iosNeedsInstall && state !== "on")}
+          onClick={state === "on" ? turnOff : turnOn}
+        >
+          <span />
+        </button>
+      </div>
 
       {iosNeedsInstall && (
-        <p className="newchat-subtitle">
+        <p className="settings-notification-note">
           On iPhone: tap Share, then "Add to Home Screen", open Morphues from your home screen, and come back here to turn this on.
         </p>
       )}
@@ -73,15 +87,9 @@ export default function NotificationSettings() {
         </p>
       )}
 
-      {(state === "off") && (
-        <button className="newchat-add-button" style={{ marginTop: 12 }} onClick={turnOn} disabled={busy}>
-          {busy ? "Working..." : "Turn on notifications"}
-        </button>
-      )}
       {state === "on" && (
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
-          <button className="newchat-add-button" onClick={test} disabled={busy}>Send a test</button>
-          <button className="newchat-add-button" onClick={turnOff} disabled={busy}>Turn off</button>
+        <div className="settings-notification-actions">
+          <button type="button" className="newchat-add-button" onClick={test} disabled={busy}>Send a test</button>
         </div>
       )}
 

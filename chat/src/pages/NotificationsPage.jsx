@@ -31,6 +31,11 @@ export default function NotificationsPage() {
   const token = localStorage.getItem("token");
   const { refreshUnreadCounts } = useOutletContext();
 
+  function goBack() {
+    const historyIndex = window.history.state?.idx;
+    navigate(Number.isInteger(historyIndex) && historyIndex > 0 ? -1 : "/feed");
+  }
+
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -103,8 +108,10 @@ export default function NotificationsPage() {
   return (
     <main className="notifications-page">
       <header className="notifications-header">
-        <div>
-          <p className="notifications-eyebrow">YOUR ACTIVITY</p>
+        <button type="button" className="notifications-back" onClick={goBack} aria-label="Go back">
+          ‹
+        </button>
+        <div className="notifications-heading">
           <h1>Notifications</h1>
           <p className="notifications-subtitle">Friend requests, likes, and comments in one place.</p>
         </div>
