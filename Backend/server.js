@@ -26,6 +26,8 @@ const dares = setupDares(app, pool, authMiddleware, push);
 const live = setupLive(app, pool, authMiddleware, push);
 
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024;
+const MAX_PROFILE_BIO_LENGTH = 160;
+const POST_TEXT_STYLE_IDS = new Set(['sunset', 'ocean', 'berry', 'mint', 'solar', 'midnight']);
 
 function parseAttachment(value) {
   if (!value || typeof value !== 'object' || typeof value.data !== 'string') {
@@ -129,6 +131,7 @@ app.post('/api/auth/login', async (req, res) => {
         email: user.email,
         avatar: user.avatar,
         cover_image: user.cover_image,
+        bio: user.bio,
       }
     });
   } catch (err) {
@@ -151,7 +154,7 @@ app.post('/api/auth/signup', async (req, res) => {
     const result = await pool.query(
       `INSERT INTO users (username, email, password_hash,avatar)
        VALUES ($1, $2, $3, $4)
-       RETURNING id, username, email, avatar, cover_image`,
+       RETURNING id, username, email, avatar, cover_image, bio`,
       [username, email, passwordHash, null]
     );
     const user = result.rows[0];
@@ -353,7 +356,7 @@ app.post('/api/auth/reset-password', rateLimit(10, 15 * 60 * 1000), async (req, 
 app.get('/api/users', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, username, avatar FROM users WHERE id != $1',
+      'SELECT id, username, avatar, bio FROM users WHERE id != $1',
       [req.userId]
     );
     res.json(result.rows);
@@ -384,11 +387,11 @@ app.get('/api/users/:userId/profile', authMiddleware, async (req, res) => {
 
     const [profileResult, postsResult, statusesResult, friendsResult] = await Promise.all([
       pool.query(
-        'SELECT id, username, avatar, cover_image FROM users WHERE id = $1',
+        'SELECT id, username, avatar, cover_image, bio FROM users WHERE id = $1',
         [profileUserId]
       ),
       pool.query(
-        `SELECT p.id, p.caption, p.image_url, p.created_at,
+        `SELECT p.id, p.caption, p.image_url, p.text_style, p.created_at,
                 u.id AS user_id, u.username, u.avatar,
                 COUNT(DISTINCT pl.user_id)::int AS like_count,
                 COUNT(DISTINCT pc.id)::int AS comment_count,
@@ -439,6 +442,30 @@ app.get('/api/users/:userId/profile', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Get user profile error:', err);
     res.status(500).json({ message: 'Internal server error.' });
+  }
+});
+
+app.patch('/api/users/bio', authMiddleware, async (req, res) => {
+  if (typeof req.body?.bio !== 'string') {
+    return res.status(400).json({ message: 'Bio must be text.' });
+  }
+  const bio = req.body.bio.trim();
+  if (bio.length > MAX_PROFILE_BIO_LENGTH) {
+    return res.status(400).json({ message: `Bio must be ${MAX_PROFILE_BIO_LENGTH} characters or fewer.` });
+  }
+
+  try {
+    const result = await pool.query(
+      'UPDATE users SET bio = $1 WHERE id = $2 RETURNING bio',
+      [bio || null, req.userId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+    return res.json({ bio: result.rows[0].bio });
+  } catch (err) {
+    console.error('Update bio error:', err);
+    return res.status(500).json({ message: 'Internal server error.' });
   }
 });
 
@@ -1368,11 +1395,15 @@ app.patch('/api/users/password', authMiddleware, async (req, res) => {
 
 // Create a post
 app.post('/api/posts', authMiddleware, async (req, res) => {
-  const { caption, imageUrl } = req.body;
+  const { caption, imageUrl, textStyle } = req.body;
+  if (textStyle != null && !POST_TEXT_STYLE_IDS.has(textStyle)) {
+    return res.status(400).json({ message: 'Choose a valid text post background.' });
+  }
+  const savedTextStyle = imageUrl ? null : textStyle || null;
   try {
     const result = await pool.query(
-      `INSERT INTO posts (user_id, caption, image_url) VALUES ($1, $2, $3) RETURNING *`,
-      [req.userId, caption || null, imageUrl || null]
+      `INSERT INTO posts (user_id, caption, image_url, text_style) VALUES ($1, $2, $3, $4) RETURNING *`,
+      [req.userId, caption || null, imageUrl || null, savedTextStyle]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -1386,7 +1417,7 @@ app.get('/api/posts', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT 
-         p.id, p.caption, p.image_url, p.created_at,
+         p.id, p.caption, p.image_url, p.text_style, p.created_at,
          u.id AS user_id, u.username, u.avatar,
          COUNT(DISTINCT pl.user_id) AS like_count,
          COUNT(DISTINCT pc.id) AS comment_count,
@@ -1954,6 +1985,8 @@ socket.on('stopTyping', ({ conversationId, groupId }) => {
 async function startServer() {
   try {
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS cover_image TEXT');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS bio VARCHAR(160)');
+    await pool.query('ALTER TABLE posts ADD COLUMN IF NOT EXISTS text_style TEXT');
     await pool.query(
       `CREATE TABLE IF NOT EXISTS message_attachments (
          message_id BIGINT PRIMARY KEY REFERENCES messages(id) ON DELETE CASCADE,

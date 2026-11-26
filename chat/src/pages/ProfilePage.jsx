@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { resizeCoverImage, resizeImage } from "../resizeImage";
 import Avatar from "../components/Avatar";
+import { getTextPostStyle } from "../textPostStyles";
 import "../css/Profile.css";
 
 const API_URL = "https://chatapp-system-mbzq.onrender.com";
@@ -97,6 +98,9 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [coverUploading, setCoverUploading] = useState(false);
+  const [bioEditing, setBioEditing] = useState(false);
+  const [bioDraft, setBioDraft] = useState("");
+  const [bioSaving, setBioSaving] = useState(false);
   const fileInputRef = useRef(null);
   const coverInputRef = useRef(null);
   const token = localStorage.getItem("token");
@@ -295,6 +299,37 @@ export default function ProfilePage() {
     } finally {
       setCoverUploading(false);
       event.target.value = "";
+    }
+  }
+
+  async function handleSaveBio(event) {
+    event.preventDefault();
+    const bio = bioDraft.trim();
+    setError("");
+    setBioSaving(true);
+    try {
+      const response = await fetch(`${API_URL}/api/users/bio`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ bio }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "Failed to update bio.");
+
+      const savedBio = data.bio || "";
+      const updatedUser = { ...currentUser, bio: savedBio };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      setCurrentUser(updatedUser);
+      setProfileUser(updatedUser);
+      setBioDraft(savedBio);
+      setBioEditing(false);
+    } catch (saveError) {
+      setError(saveError.message || "Failed to update bio.");
+    } finally {
+      setBioSaving(false);
     }
   }
 
@@ -502,6 +537,49 @@ export default function ProfilePage() {
             )}
           </div>
 
+          <section className="profile-bio-section" aria-label="Profile bio">
+            <div className="profile-bio-heading">
+              <h2>About</h2>
+              {isOwnProfile && !bioEditing && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBioDraft(profileUser?.bio || "");
+                    setBioEditing(true);
+                    setError("");
+                  }}
+                >
+                  {profileUser?.bio ? "Edit bio" : "Add bio"}
+                </button>
+              )}
+            </div>
+            {bioEditing ? (
+              <form className="profile-bio-form" onSubmit={handleSaveBio}>
+                <textarea
+                  value={bioDraft}
+                  onChange={(event) => setBioDraft(event.target.value)}
+                  maxLength={160}
+                  rows={3}
+                  placeholder="A little about you..."
+                  aria-label="Edit your bio"
+                />
+                <div className="profile-bio-form-actions">
+                  <span>{bioDraft.length}/160</span>
+                  <button type="button" onClick={() => setBioEditing(false)} disabled={bioSaving}>
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={bioSaving}>
+                    {bioSaving ? "Saving..." : "Save bio"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <p className={profileUser?.bio ? "" : "profile-bio-empty"}>
+                {profileUser?.bio || (isOwnProfile ? "Add a short bio so friends can get to know you." : "No bio yet.")}
+              </p>
+            )}
+          </section>
+
           <div className="profile-stats" aria-label="Profile statistics">
             {isOwnProfile ? (
               <div><strong>{dareStats?.completed ?? "—"}</strong><span>Dares</span></div>
@@ -553,7 +631,12 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        {isOwnProfile && <section className="profile-mobile-actions" aria-label="Profile and account options">
+        {isOwnProfile && <details className="profile-mobile-actions">
+          <summary>
+            <span className="profile-mobile-action-icon"><ProfileIcon name="settings" /></span>
+            <span><strong>Profile &amp; account options</strong><small>Friends, posts and settings</small></span>
+            <span className="profile-mobile-action-arrow"><ProfileIcon name="chevron" /></span>
+          </summary>
           <Link to="/requests">
             <span className="profile-mobile-action-icon"><ProfileIcon name="friends" /></span>
             <span><strong>Friends &amp; requests</strong><small>Manage your friends and requests</small></span>
@@ -564,7 +647,8 @@ export default function ProfilePage() {
             <span><strong>Badges &amp; ranks</strong><small>Your achievements and leaderboard</small></span>
             <span className="profile-mobile-action-arrow"><ProfileIcon name="chevron" /></span>
           </Link>
-          <button type="button" onClick={() => {
+          <button type="button" onClick={(event) => {
+            event.currentTarget.closest("details").open = false;
             setActiveTab("posts");
             document.getElementById("profile-content")?.scrollIntoView({ behavior: "smooth" });
           }}>
@@ -582,7 +666,7 @@ export default function ProfilePage() {
             <span><strong>Log out</strong><small>Sign out of your account</small></span>
             <span className="profile-mobile-action-arrow"><ProfileIcon name="chevron" /></span>
           </button>
-        </section>}
+        </details>}
 
         {error && <p className="profile-error" role="alert">{error}</p>}
 
@@ -666,7 +750,12 @@ export default function ProfilePage() {
                     {post.image_url ? (
                       <img src={post.image_url} alt={post.caption || "Your post"} />
                     ) : (
-                      <div className="profile-post-text-tile">{post.caption || "Post"}</div>
+                      <div
+                        className="profile-post-text-tile"
+                        style={{ background: getTextPostStyle(post.text_style).background }}
+                      >
+                        {post.caption || "Post"}
+                      </div>
                     )}
                     <div className="profile-post-overlay">
                       <span>{post.caption || "Your post"}</span>

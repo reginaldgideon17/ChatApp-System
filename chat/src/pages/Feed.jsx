@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { resizeImage } from "../resizeImage";
 import UserAvatarMenu from "../components/UserAvatarMenu";
+import { getTextPostStyle, TEXT_POST_STYLES } from "../textPostStyles";
 import "../css/Feed.css";
 
 import StatusBar from "./Statusbar.jsx";
@@ -59,6 +60,7 @@ export default function Feed() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [caption, setCaption] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
+  const [textStyle, setTextStyle] = useState(TEXT_POST_STYLES[0].id);
   const [posting, setPosting] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -230,11 +232,12 @@ export default function Feed() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ caption, imageUrl: imagePreview }),
+        body: JSON.stringify({ caption, imageUrl: imagePreview, textStyle: imagePreview ? null : textStyle }),
       });
       if (!response.ok) throw new Error("Failed to create post.");
       setCaption("");
       setImagePreview(null);
+      setTextStyle(TEXT_POST_STYLES[0].id);
       setComposerOpen(false);
       document.querySelectorAll(".composer-input").forEach((el) => { el.style.height = "auto"; });
       fetchPosts();
@@ -249,6 +252,7 @@ export default function Feed() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const firstName = (user?.username || "").split(" ")[0];
+  const activeTextStyle = getTextPostStyle(textStyle);
 
   return (
     <main className="feed-page">
@@ -265,7 +269,10 @@ export default function Feed() {
               <div className="composer-row">
                 <Avatar src={user?.avatar} name={user?.username} className="post-avatar" />
                 <textarea
-                  className="composer-input"
+                  className={`composer-input${!imagePreview && caption.trim() ? " composer-input-text-card" : ""}`}
+                  style={!imagePreview && caption.trim()
+                    ? { "--composer-text-background": activeTextStyle.background }
+                    : undefined}
                   value={caption}
                   onChange={(e) => {
                     setCaption(e.target.value);
@@ -278,6 +285,26 @@ export default function Feed() {
                   aria-label="Write a post"
                 />
               </div>
+
+              {!imagePreview && (
+                <fieldset className="composer-background-options">
+                  <legend>Text background</legend>
+                  <div className="composer-background-swatches" role="group" aria-label="Choose a text background">
+                    {TEXT_POST_STYLES.map((style) => (
+                      <button
+                        key={style.id}
+                        type="button"
+                        className={textStyle === style.id ? "selected" : ""}
+                        style={{ background: style.background }}
+                        aria-label={`Use ${style.label} background`}
+                        aria-pressed={textStyle === style.id}
+                        title={style.label}
+                        onClick={() => setTextStyle(style.id)}
+                      />
+                    ))}
+                  </div>
+                </fieldset>
+              )}
 
               {imagePreview && (
                 <div className="composer-preview">
@@ -338,10 +365,12 @@ export default function Feed() {
 
             {posts.map((post) => {
               const comments = expandedComments[post.id];
+              const isTextPost = !post.image_url && Boolean(post.caption);
+              const postTextStyle = getTextPostStyle(post.text_style);
 
               return (
                 <article
-                  className={`feed-post${post.image_url ? " feed-post-has-image" : ""}${String(highlightedPostId) === String(post.id) ? " feed-post-highlighted" : ""}`}
+                  className={`feed-post${post.image_url ? " feed-post-has-image" : ""}${isTextPost ? " feed-post-text-only" : ""}${String(highlightedPostId) === String(post.id) ? " feed-post-highlighted" : ""}`}
                   id={`feed-post-${post.id}`}
                   key={post.id}
                 >
@@ -358,6 +387,11 @@ export default function Feed() {
                   </header>
 
                   {post.image_url && <img className="post-image" src={post.image_url} alt="" />}
+                  {isTextPost && (
+                    <div className="post-text-card" style={{ background: postTextStyle.background }}>
+                      {post.caption}
+                    </div>
+                  )}
 
                   <div className="post-details">
                     <div className="post-actions">
@@ -378,7 +412,7 @@ export default function Feed() {
                     </div>
 
                     <strong className="post-likes">{Number(post.like_count)} likes</strong>
-                    {post.caption && (
+                    {post.image_url && post.caption && (
                       <p className="post-caption">
                         <strong>{post.username}</strong> {post.caption}
                       </p>

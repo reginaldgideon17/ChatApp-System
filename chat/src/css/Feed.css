@@ -658,6 +658,46 @@ html body .feed-page .composer-input {
   line-height: 1.5;
 }
 html body .feed-page .composer-input::placeholder { color: var(--f-muted); }
+html body .feed-page .composer-input.composer-input-text-card {
+  min-height: 132px;
+  padding: 18px !important;
+  color: #fff !important;
+  background: var(--composer-text-background) !important;
+  border-radius: 18px;
+}
+html body .feed-page .composer-input.composer-input-text-card::placeholder { color: rgba(255, 255, 255, 0.82); }
+
+html body .feed-page .composer-background-options {
+  margin: 8px 0 0 56px;
+  padding: 0;
+  border: 0;
+}
+html body .feed-page .composer-background-options legend {
+  margin-bottom: 7px;
+  padding: 0;
+  color: var(--f-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+html body .feed-page .composer-background-swatches { display: flex; flex-wrap: wrap; gap: 9px; }
+html body .feed-page .composer-background-swatches button {
+  width: 25px;
+  height: 25px;
+  padding: 0;
+  border: 2px solid var(--f-surface);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--f-line);
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+html body .feed-page .composer-background-swatches button:hover { transform: scale(1.1); }
+html body .feed-page .composer-background-swatches button.selected {
+  box-shadow: 0 0 0 2px var(--f-surface), 0 0 0 4px #ff6a28;
+}
+html body .feed-page .composer-background-swatches button:focus-visible {
+  outline: 2px solid #ff6a28;
+  outline-offset: 4px;
+}
 
 html body .feed-page .composer-preview { position: relative; margin: 6px 0 4px 56px; }
 html body .feed-page .composer-preview img {
@@ -763,6 +803,20 @@ html body .feed-page .post-image {
   object-fit: cover;
   background: var(--f-soft);
 }
+html body .feed-page .post-text-card {
+  min-height: 300px;
+  display: grid;
+  place-items: center;
+  padding: clamp(32px, 8vw, 72px);
+  color: #fff;
+  font-family: "Space Grotesk", "Inter", sans-serif;
+  font-size: clamp(22px, 4vw, 36px);
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 
 /* ---------- actions + text ---------- */
 html body .feed-page .post-details { padding: 10px 20px 18px; }
@@ -836,10 +890,13 @@ html body .feed-page .follow-label { color: #ff6a28; }
     border-radius: 20px;
   }
   html body .feed-page .post-image { min-height: 240px; max-height: 480px; }
+  html body .feed-page .post-text-card { min-height: 250px; padding: 30px 24px; font-size: clamp(20px, 6vw, 29px); }
   html body .feed-page .post-header { padding: 14px 16px 4px; }
   html body .feed-page .feed-post-has-image .post-header { padding: 14px 16px 40px; }
   html body .feed-page .post-details { padding: 8px 16px 16px; }
-  html body .feed-page .composer-chips, html body .feed-page .composer-preview { padding-left: 0; margin-left: 0; }
+  html body .feed-page .composer-chips,
+  html body .feed-page .composer-preview,
+  html body .feed-page .composer-background-options { padding-left: 0; margin-left: 0; }
 }
 
 /* "Link copied" message after tapping Share */

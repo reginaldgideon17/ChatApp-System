@@ -44,10 +44,12 @@ async function initializeSchema() {
       password_hash TEXT NOT NULL,
       avatar TEXT,
       cover_image TEXT,
+      bio VARCHAR(160),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
     ALTER TABLE users ADD COLUMN IF NOT EXISTS cover_image TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS bio VARCHAR(160);
 
     CREATE TABLE IF NOT EXISTS friendships (
       id BIGSERIAL PRIMARY KEY,
@@ -106,8 +108,11 @@ async function initializeSchema() {
       user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       caption TEXT,
       image_url TEXT,
+      text_style TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+
+    ALTER TABLE posts ADD COLUMN IF NOT EXISTS text_style TEXT;
 
     CREATE TABLE IF NOT EXISTS post_likes (
       id BIGSERIAL PRIMARY KEY,
