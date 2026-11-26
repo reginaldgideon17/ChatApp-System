@@ -13,7 +13,6 @@ const TABS = [
   { id: "done", label: "Done" },
   { id: "ranks", label: "Ranks" },
 ];
-const CATEGORY_EMOJI = { creative: "🎤", art: "✏️", photo: "📸", trivia: "🧠", dance: "💃", funny: "😜" };
 const STATUS_LABEL = {
   pending: "New",
   accepted: "In progress",
@@ -22,6 +21,26 @@ const STATUS_LABEL = {
   declined: "Skipped",
   expired: "Ran out of time",
 };
+
+function DareIcon({ name }) {
+  const icons = {
+    creative: <><path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" /></>,
+    art: <><path d="m4 20 4.5-1 11-11a2.1 2.1 0 0 0-3-3l-11 11L4 20Z" /><path d="m14.5 6.5 3 3" /></>,
+    photo: <><path d="M14 4h-4L8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z" /><circle cx="12" cy="13" r="3" /></>,
+    trivia: <><circle cx="12" cy="12" r="9" /><path d="M9.6 9a2.5 2.5 0 1 1 4.4 1.6c-1.1 1.1-2 1.4-2 3M12 17h.01" /></>,
+    dance: <><circle cx="12" cy="5" r="2" /><path d="m10 10-4 3 3 2-2 5M14 10l4 2-2 3 3 4M10 10l2 3 2-3" /></>,
+    funny: <><circle cx="12" cy="12" r="9" /><path d="M8 14s1.5 3 4 3 4-3 4-3M9 9h.01M15 9h.01" /></>,
+    video: <><path d="M4 7h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z" /><path d="m16 10 6-3v10l-6-3z" /></>,
+    streak: <path d="M12 22c4.4 0 7-3 7-7.2 0-2.5-1.2-4.2-3.4-6.3.2 2-1 3.2-2.6 4.1.1-3.6-1.8-6.4-5.3-9.6.1 3.2-.3 4.4-1.5 6-1.7 2.2-2.2 3.7-2.2 5.8C4 18.9 7 22 12 22Z" />,
+    first: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" /></>,
+    ten: <><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4Z" /><path d="M7 6H4v2a4 4 0 0 0 4 4M17 6h3v2a4 4 0 0 1-4 4" /></>,
+  };
+  return (
+    <svg className={`dare-icon dare-icon-${name}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {icons[name] || icons.first}
+    </svg>
+  );
+}
 
 function formatLimit(minutes) {
   if (minutes < 60) return `${minutes} min`;
@@ -96,7 +115,7 @@ function DareCard({ dare, me, onOpen }) {
         <p className="dare-card-who">
           {iAmRecipient ? `${other.name} dared you` : `You dared ${other.name}`}
         </p>
-        <p className="dare-card-text">{CATEGORY_EMOJI[dare.category] || "🎯"} {dare.text}</p>
+        <p className="dare-card-text"><DareIcon name={dare.category} />{dare.text}</p>
         <p className="dare-card-meta">
           <span className={`dare-pill dare-pill-${dare.status}`}>{STATUS_LABEL[dare.status] || dare.status}</span>
           <span>+{dare.points} pts</span>
@@ -203,7 +222,7 @@ function DareModal({ dare, me, token, onClose, onChanged }) {
       <div className="dares-modal" onClick={(e) => e.stopPropagation()}>
         <button type="button" className="dares-close" onClick={onClose} aria-label="Close">×</button>
         <p className="dares-eyebrow">{iAmRecipient ? `From ${other}` : `To ${other}`}</p>
-        <h2 className="dares-modal-text">{CATEGORY_EMOJI[dare.category] || "🎯"} {dare.text}</h2>
+        <h2 className="dares-modal-text"><DareIcon name={dare.category} />{dare.text}</h2>
         <p className="dare-card-meta">
           <span className={`dare-pill dare-pill-${dare.status}`}>{STATUS_LABEL[dare.status] || dare.status}</span>
           <span>+{dare.points} pts</span>
@@ -246,7 +265,7 @@ function DareModal({ dare, me, token, onClose, onChanged }) {
               <button type="button" className="dares-btn dares-btn-primary" disabled={!file || busy} onClick={submitProof}>
                 {busy ? "Sending…" : "Send proof"}
               </button>
-              <button type="button" className="dares-btn" disabled={busy} onClick={() => navigate(`/live?dare=${dare.id}&title=${encodeURIComponent(dare.text.slice(0, 100))}`)}>🔴 Do it live</button>
+              <button type="button" className="dares-btn" disabled={busy} onClick={() => navigate(`/live?dare=${dare.id}&title=${encodeURIComponent(dare.text.slice(0, 100))}`)}><DareIcon name="video" />Do it live</button>
               <button type="button" className="dares-btn" disabled={busy} onClick={() => act("decline")}>Give up</button>
             </div>
           </div>
@@ -363,7 +382,7 @@ function NewDare({ token, library, onClose, onSent }) {
               className={`dares-chip${category === c.id ? " selected" : ""}`}
               onClick={() => setCategory(c.id)}
             >
-              {CATEGORY_EMOJI[c.id]} {c.label} · {c.points}
+              <DareIcon name={c.id} />{c.label} · {c.points}
             </button>
           ))}
         </div>
@@ -487,22 +506,22 @@ export default function DaresPage() {
   }, [token, refresh]);
 
   return (
-    <main className="dares-page">
+    <main className="dares-page dares-dashboard">
       <header className="dares-header">
         <div>
           <p className="dares-eyebrow">DARES</p>
           <h1>Dare your friends</h1>
         </div>
         <div className="dares-actions" style={{ marginTop: 0 }}>
-          <button type="button" className="dares-btn" onClick={() => navigate("/live")}>🔴 Live</button>
-          <button type="button" className="dares-btn dares-btn-primary" onClick={() => setCreating(true)}>+ New dare</button>
+          <button type="button" className="dares-btn" onClick={() => navigate("/live")}><DareIcon name="video" />Live</button>
+          <button type="button" className="dares-btn dares-btn-primary" onClick={() => setCreating(true)}><svg className="dare-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>New dare</button>
         </div>
       </header>
 
       {stats && (
         <section className="dares-stats" aria-label="Your stats">
           <div><strong>{stats.points}</strong><span>points</span></div>
-          <div><strong>{stats.streak}🔥</strong><span>day streak</span></div>
+          <div><strong>{stats.streak}<DareIcon name="streak" /></strong><span>day streak</span></div>
           <div><strong>{stats.completed}</strong><span>completed</span></div>
           <div><strong>{stats.successRate === null ? "–" : `${stats.successRate}%`}</strong><span>success</span></div>
         </section>
@@ -511,7 +530,7 @@ export default function DaresPage() {
       {stats?.badges?.some((b) => b.earned) && (
         <div className="dares-badges">
           {stats.badges.filter((b) => b.earned).map((b) => (
-            <span key={b.id} className="dares-badge">{b.icon} {b.label}</span>
+            <span key={b.id} className="dares-badge"><DareIcon name={b.id} />{b.label}</span>
           ))}
         </div>
       )}

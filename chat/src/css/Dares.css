@@ -65,3 +65,198 @@ html[data-theme="dark"] .dares-modal{--d-card:#201f1d;--d-text:#f3f1ee;--d-muted
 .dares-rank-n{width:22px;font-weight:800;color:var(--d-muted)}
 .dares-rank-name{flex:1;font-weight:600}
 .dares-rank-pts{font-weight:700}
+
+.dares-page.dares-dashboard {
+  --d-bg: #f8f5f2;
+  --d-card: #fff;
+  --d-text: #211b1a;
+  --d-muted: #817875;
+  --d-line: #eee3df;
+  --d-accent: #ff6a28;
+  max-width: 900px;
+  min-height: calc(100vh - 64px);
+  padding: 32px 26px 96px;
+  background:
+    radial-gradient(ellipse at 92% 0, rgba(255, 106, 40, 0.13), transparent 34%),
+    var(--d-bg);
+}
+
+html[data-theme="dark"] .dares-page.dares-dashboard {
+  --d-bg: #110f14;
+  --d-card: #1d1921;
+  --d-text: #f7f1f3;
+  --d-muted: #aaa1ac;
+  --d-line: #342b38;
+}
+
+.dares-dashboard .dares-header {
+  min-height: 122px;
+  margin-bottom: 18px;
+  padding: 22px 24px;
+  background: linear-gradient(120deg, #fff 20%, #fff0e8);
+  border: 1px solid var(--d-line);
+  border-radius: 22px;
+  box-shadow: 0 20px 50px -42px rgba(90, 43, 26, 0.6);
+}
+
+html[data-theme="dark"] .dares-dashboard .dares-header {
+  background: linear-gradient(120deg, #241c25, #30201f);
+}
+
+.dares-dashboard .dares-header h1 {
+  font: 700 clamp(25px, 4vw, 35px) "Space Grotesk", "Inter", sans-serif;
+  letter-spacing: -0.035em;
+}
+
+.dares-dashboard .dares-header .dares-eyebrow { color: var(--d-accent); }
+.dares-dashboard .dares-header .dares-actions { gap: 9px; }
+.dares-dashboard .dares-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.dare-icon { width: 17px; height: 17px; flex: 0 0 auto; }
+.dares-dashboard .dares-btn-primary .dare-icon { color: #fff; }
+
+.dares-dashboard .dares-stats {
+  gap: 11px;
+  margin-bottom: 16px;
+}
+
+.dares-dashboard .dares-stats > div {
+  min-height: 92px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: var(--d-card);
+  border-color: var(--d-line);
+  border-radius: 17px;
+  box-shadow: 0 12px 30px -26px rgba(90, 43, 26, 0.65);
+}
+
+.dares-dashboard .dares-stats strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--d-text);
+  font: 700 22px "Space Grotesk", "Inter", sans-serif;
+}
+
+.dares-dashboard .dares-stats strong .dare-icon { width: 17px; height: 17px; color: var(--d-accent); }
+.dares-dashboard .dares-stats span { color: var(--d-muted); font-size: 11px; }
+.dares-dashboard .dares-badges { gap: 8px; margin: 0 0 18px; }
+.dares-dashboard .dares-badge { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; color: var(--d-text); background: var(--d-card); border-color: var(--d-line); border-radius: 12px; font-size: 11px; font-weight: 700; }
+.dares-dashboard .dares-badge .dare-icon { color: var(--d-accent); }
+
+.dares-dashboard .dares-tabs {
+  gap: 6px;
+  margin: 0 0 16px;
+  padding: 4px;
+  overflow-x: auto;
+  background: color-mix(in srgb, var(--d-card) 75%, transparent);
+  border: 1px solid var(--d-line);
+  border-radius: 15px;
+}
+
+.dares-dashboard .dares-tab {
+  min-height: 38px;
+  flex: 1 0 auto;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 11px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.dares-dashboard .dares-tab.active {
+  color: #fff;
+  background: var(--d-accent);
+  box-shadow: 0 6px 16px -10px var(--d-accent);
+}
+
+.dares-dashboard .dares-tab-badge { color: #fff; background: rgba(0, 0, 0, 0.2); }
+.dares-dashboard .dares-list { gap: 11px; }
+
+.dares-dashboard .dare-card,
+.dares-dashboard .dares-rank {
+  min-height: 78px;
+  padding: 14px 16px;
+  background: var(--d-card);
+  border-color: var(--d-line);
+  border-radius: 17px;
+  box-shadow: 0 14px 36px -32px rgba(70, 38, 29, 0.7);
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.dares-dashboard .dare-card:hover,
+.dares-dashboard .dares-rank:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--d-accent) 40%, var(--d-line));
+  box-shadow: 0 19px 36px -29px rgba(70, 38, 29, 0.75);
+}
+
+.dares-dashboard .dare-card-avatar { width: 48px; height: 48px; border: 2px solid color-mix(in srgb, var(--d-accent) 55%, #df477a); }
+.dares-dashboard .dare-card-who { color: var(--d-muted); font-size: 11px; }
+.dares-dashboard .dare-card-text { display: flex; align-items: flex-start; gap: 8px; margin: 4px 0 8px; color: var(--d-text); font-size: 13px; line-height: 1.4; }
+.dares-dashboard .dare-card-text .dare-icon { margin-top: 1px; color: var(--d-accent); }
+.dares-dashboard .dare-card-meta { gap: 7px; font-size: 11px; }
+.dares-dashboard .dare-pill { padding: 4px 9px; }
+.dares-dashboard .dare-pill-pending,.dares-dashboard .dare-pill-accepted { background: #fff0e7; color: #a8450c; }
+.dares-dashboard .dare-pill-submitted { background: #e8edff; color: #4155a3; }
+.dares-dashboard .dare-pill-approved { background: #e1f4e8; color: #17703e; }
+html[data-theme="dark"] .dares-dashboard .dare-pill-pending,
+html[data-theme="dark"] .dares-dashboard .dare-pill-accepted { background: #3a261f; color: #ffc09e; }
+html[data-theme="dark"] .dares-dashboard .dare-pill-submitted { background: #252744; color: #c1c7ff; }
+html[data-theme="dark"] .dares-dashboard .dare-pill-approved { background: #1e3528; color: #9ce0b5; }
+
+.dares-dashboard .dares-empty,
+.dares-dashboard .dares-muted {
+  color: var(--d-muted);
+}
+
+.dares-dashboard .dares-empty {
+  padding: 40px 20px;
+  background: var(--d-card);
+  border: 1px dashed var(--d-line);
+  border-radius: 17px;
+}
+
+.dares-dashboard .dares-rank { gap: 13px; }
+.dares-dashboard .dares-rank.me { border-color: var(--d-accent); background: color-mix(in srgb, var(--d-accent) 6%, var(--d-card)); }
+.dares-dashboard .dares-rank-n { color: var(--d-accent); }
+.dares-dashboard .dares-rank-pts { color: var(--d-accent); }
+.dares-dashboard .dares-overlay { padding: 18px; backdrop-filter: blur(7px); }
+.dares-dashboard .dares-modal { padding: 27px 24px 24px; border: 1px solid var(--d-line); border-radius: 22px; box-shadow: 0 26px 80px rgba(0, 0, 0, 0.32); }
+.dares-dashboard .dares-modal-text { display: flex; align-items: flex-start; gap: 10px; padding-right: 28px; font: 700 20px/1.35 "Space Grotesk", "Inter", sans-serif; }
+.dares-dashboard .dares-modal-text .dare-icon { width: 22px; height: 22px; margin-top: 2px; color: var(--d-accent); }
+.dares-dashboard .dares-close { width: 34px; height: 34px; display: grid; place-items: center; padding: 0; background: var(--d-bg); border-radius: 50%; font-size: 24px; }
+.dares-dashboard .dares-input { min-height: 43px; background: var(--d-bg); border-color: var(--d-line); }
+.dares-dashboard .dares-textarea { min-height: 92px; }
+.dares-dashboard .dares-friend.selected { background: color-mix(in srgb, var(--d-accent) 9%, transparent); }
+.dares-dashboard .dares-chip { display: inline-flex; align-items: center; gap: 7px; }
+.dares-dashboard .dares-chip .dare-icon { width: 16px; height: 16px; }
+.dares-dashboard .dares-chip.selected { background: var(--d-accent); border-color: var(--d-accent); }
+.dares-dashboard .dares-idea { padding: 6px 10px; }
+.dares-dashboard .dares-btn:focus-visible,
+.dares-dashboard .dares-chip:focus-visible,
+.dares-dashboard .dare-card:focus-visible,
+.dares-dashboard .dares-tab:focus-visible {
+  outline: 2px solid var(--d-accent);
+  outline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .dares-page.dares-dashboard { padding: 20px 13px 90px; }
+  .dares-dashboard .dares-header { align-items: flex-start; padding: 17px; border-radius: 18px; }
+  .dares-dashboard .dares-header .dares-actions { flex-direction: column; margin-top: 0; }
+  .dares-dashboard .dares-header .dares-btn { min-height: 37px; padding: 8px 11px; font-size: 11px; }
+  .dares-dashboard .dares-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .dares-dashboard .dares-stats > div { min-height: 78px; }
+  .dares-dashboard .dare-card { align-items: flex-start; padding: 12px; }
+  .dares-dashboard .dare-card-avatar { width: 40px; height: 40px; }
+  .dares-dashboard .dares-modal { max-height: 92vh; padding: 24px 18px 22px; border-radius: 20px; }
+  .dares-dashboard .dares-overlay { align-items: center; padding: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dares-dashboard .dare-card,
+  .dares-dashboard .dares-rank { transition: none; }
+}

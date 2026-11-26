@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { resizeImage } from "../resizeImage";
 import UserAvatarMenu from "../components/UserAvatarMenu";
+import ShareWithFriendsDialog from "../components/ShareWithFriendsDialog";
 import { getTextPostStyle, TEXT_POST_STYLES } from "../textPostStyles";
 import "../css/Feed.css";
 
@@ -65,7 +66,7 @@ export default function Feed() {
   const fileInputRef = useRef(null);
 
   const [friends, setFriends] = useState([]);
-  const [toast, setToast] = useState("");
+  const [sharing, setSharing] = useState(null);
 
   const user = JSON.parse(localStorage.getItem("user"));
   const token = localStorage.getItem("token");
@@ -188,29 +189,13 @@ export default function Feed() {
     }
   }
 
-  function showToast(message) {
-    setToast(message);
-    window.setTimeout(() => setToast(""), 2200);
-  }
-
-  // Share a post: the phone/computer share sheet where there is one, otherwise copy the link
-  async function sharePost(post) {
+  function sharePost(post) {
     const url = `${window.location.origin}/feed#post-${post.id}`;
-    const text = post.caption ? `${post.username}: ${post.caption}` : `A post by ${post.username}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: "Morphues", text, url });
-        return;
-      }
-    } catch (err) {
-      if (err && err.name === "AbortError") return; // they closed the share sheet
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      showToast("Link copied");
-    } catch {
-      window.prompt("Copy this link:", url);
-    }
+    setSharing({
+      title: "Share post",
+      description: `Send ${post.username}'s post to your friends.`,
+      message: `${post.username} shared a post with you: ${url}`,
+    });
   }
 
   async function handleImagePick(e) {
@@ -492,7 +477,15 @@ export default function Feed() {
           </section>
         </aside>
       </div>
-      {toast && <div className="feed-toast" role="status">{toast}</div>}
+      {sharing && (
+        <ShareWithFriendsDialog
+          token={token}
+          title={sharing.title}
+          description={sharing.description}
+          message={sharing.message}
+          onClose={() => setSharing(null)}
+        />
+      )}
     </main>
   );
 }

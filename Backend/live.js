@@ -15,10 +15,23 @@ function setupLive(app, pool, authMiddleware, push) {
         host_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         dare_id BIGINT,
         title VARCHAR(100) NOT NULL,
+        visibility VARCHAR(8) NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'private')),
         status VARCHAR(10) NOT NULL DEFAULT 'live' CHECK (status IN ('live','ended')),
         started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         ended_at TIMESTAMPTZ
       )`);
+    await pool.query(`ALTER TABLE live_rooms ADD COLUMN IF NOT EXISTS visibility VARCHAR(8) NOT NULL DEFAULT 'public'`);
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS live_join_requests (
+        id BIGSERIAL PRIMARY KEY,
+        room_id BIGINT NOT NULL REFERENCES live_rooms(id) ON DELETE CASCADE,
+        user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        status VARCHAR(10) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined')),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        responded_at TIMESTAMPTZ,
+        UNIQUE (room_id, user_id)
+      )`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS live_join_requests_pending_idx ON live_join_requests(room_id, status)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS live_rooms_status_idx ON live_rooms(status, started_at DESC)`);
     // rooms left "live" by a server restart are closed
     await pool.query(`UPDATE live_rooms SET status='ended', ended_at=NOW() WHERE status='live'`);
@@ -62,14 +75,25 @@ function setupLive(app, pool, authMiddleware, push) {
 
   async function getRoom(id) {
     const r = await pool.query(
-      `SELECT l.id, l.host_id, l.dare_id, l.title, l.status, l.started_at,
+      `SELECT l.id, l.host_id, l.dare_id, l.title, l.visibility, l.status, l.started_at,
               u.username AS host_username, u.avatar AS host_avatar
        FROM live_rooms l JOIN users u ON u.id = l.host_id WHERE l.id = $1::bigint`, [id]);
     return r.rows[0] || null;
   }
 
   async function canWatch(room, userId) {
-    return String(room.host_id) === String(userId) || (await areFriends(room.host_id, userId));
+    if (String(room.host_id) === String(userId) || room.visibility !== 'private') return true;
+    const approval = await pool.query(
+      `SELECT 1 FROM live_join_requests WHERE room_id=$1::bigint AND user_id=$2::bigint AND status='accepted'`,
+      [room.id, userId]
+    );
+    return approval.rows.length > 0;
+  }
+
+  async function canSeeRoom(room, userId) {
+    return room.visibility !== 'private'
+      || String(room.host_id) === String(userId)
+      || (await areFriends(room.host_id, userId));
   }
 
   function tally(roomId) {
@@ -89,11 +113,15 @@ function setupLive(app, pool, authMiddleware, push) {
   app.get('/api/live', authMiddleware, async (req, res) => {
     try {
       const r = await pool.query(
-        `SELECT l.id, l.host_id, l.dare_id, l.title, l.started_at,
-                u.username AS host_username, u.avatar AS host_avatar
+        `SELECT l.id, l.host_id, l.dare_id, l.title, l.visibility, l.started_at,
+                u.username AS host_username, u.avatar AS host_avatar,
+                CASE WHEN l.host_id=$1::bigint THEN (
+                  SELECT COUNT(*)::int FROM live_join_requests r
+                  WHERE r.room_id=l.id AND r.status='pending'
+                ) ELSE 0 END AS pending_requests
          FROM live_rooms l JOIN users u ON u.id = l.host_id
          WHERE l.status = 'live' AND (
-           l.host_id = $1::bigint OR EXISTS (
+           l.visibility = 'public' OR l.host_id = $1::bigint OR EXISTS (
              SELECT 1 FROM friendships f WHERE f.status='accepted' AND
              ((f.requester_id=$1::bigint AND f.addressee_id=l.host_id) OR (f.addressee_id=$1::bigint AND f.requester_id=l.host_id))))
          ORDER BY l.started_at DESC LIMIT 30`, [req.userId]);
@@ -107,6 +135,10 @@ function setupLive(app, pool, authMiddleware, push) {
   app.post('/api/live', authMiddleware, async (req, res) => {
     const title = String(req.body?.title ?? '').replace(/\s+/g, ' ').trim().slice(0, 100);
     if (title.length < 3) return res.status(400).json({ message: 'Give your live a short title.' });
+    const visibility = req.body?.visibility ?? 'public';
+    if (!['public', 'private'].includes(visibility)) {
+      return res.status(400).json({ message: 'Choose public or private for your live.' });
+    }
     const dareId = req.body?.dareId ? String(req.body.dareId) : null;
     if (dareId && !validId(dareId)) return res.status(400).json({ message: 'Invalid dare.' });
     try {
@@ -117,8 +149,8 @@ function setupLive(app, pool, authMiddleware, push) {
       }
       await pool.query(`UPDATE live_rooms SET status='ended', ended_at=NOW() WHERE host_id=$1::bigint AND status='live'`, [req.userId]);
       const ins = await pool.query(
-        `INSERT INTO live_rooms (host_id, dare_id, title) VALUES ($1::bigint, $2, $3) RETURNING id`,
-        [req.userId, dareId, title]);
+        `INSERT INTO live_rooms (host_id, dare_id, title, visibility) VALUES ($1::bigint, $2, $3, $4) RETURNING id`,
+        [req.userId, dareId, title, visibility]);
       const room = await getRoom(ins.rows[0].id);
 
       const friends = await pool.query(
@@ -141,11 +173,127 @@ function setupLive(app, pool, authMiddleware, push) {
     if (!validId(req.params.id)) return res.status(400).json({ message: 'Invalid live.' });
     try {
       const room = await getRoom(req.params.id);
-      if (!room || !(await canWatch(room, req.userId))) return res.status(404).json({ message: 'Live not found.' });
-      res.json(room);
+      if (!room || !(await canSeeRoom(room, req.userId))) return res.status(404).json({ message: 'Live not found.' });
+      const request = room.visibility === 'private'
+        ? await pool.query(
+          `SELECT status FROM live_join_requests WHERE room_id=$1::bigint AND user_id=$2::bigint`,
+          [room.id, req.userId]
+        )
+        : { rows: [] };
+      res.json({
+        ...room,
+        is_host: String(room.host_id) === String(req.userId),
+        can_watch: await canWatch(room, req.userId),
+        request_status: request.rows[0]?.status || null,
+      });
     } catch (err) {
       console.error('Live get error:', err);
       res.status(500).json({ message: 'Internal server error.' });
+    }
+  });
+
+  app.post('/api/live/:id/requests', authMiddleware, async (req, res) => {
+    if (!validId(req.params.id)) return res.status(400).json({ message: 'Invalid live.' });
+    try {
+      const room = await getRoom(req.params.id);
+      if (!room || room.status !== 'live' || room.visibility !== 'private') {
+        return res.status(404).json({ message: 'Private live not found.' });
+      }
+      if (String(room.host_id) === String(req.userId)) {
+        return res.status(400).json({ message: 'You are hosting this live.' });
+      }
+      if (!(await areFriends(room.host_id, req.userId))) {
+        return res.status(403).json({ message: 'Only the host’s friends can request to join this private live.' });
+      }
+      if (await canWatch(room, req.userId)) {
+        return res.json({ status: 'accepted' });
+      }
+
+      const inserted = await pool.query(
+        `INSERT INTO live_join_requests (room_id, user_id)
+         VALUES ($1::bigint, $2::bigint)
+         ON CONFLICT (room_id, user_id) DO UPDATE
+           SET status='pending', created_at=NOW(), responded_at=NULL
+           WHERE live_join_requests.status <> 'accepted'
+         RETURNING id, status`,
+        [room.id, req.userId]
+      );
+      const request = inserted.rows[0] || (await pool.query(
+        `SELECT id, status FROM live_join_requests WHERE room_id=$1::bigint AND user_id=$2::bigint`,
+        [room.id, req.userId]
+      )).rows[0];
+      if (request.status === 'pending') {
+        const requester = await pool.query('SELECT username, avatar FROM users WHERE id=$1::bigint', [req.userId]);
+        io?.to(`user:${room.host_id}`).emit('live:join-request', {
+          roomId: String(room.id),
+          requestId: String(request.id),
+          userId: String(req.userId),
+          username: requester.rows[0]?.username || 'Friend',
+          avatar: requester.rows[0]?.avatar || null,
+        });
+      }
+      return res.status(200).json({ status: request.status });
+    } catch (err) {
+      console.error('Live join request error:', err);
+      return res.status(500).json({ message: 'Internal server error.' });
+    }
+  });
+
+  app.get('/api/live/:id/requests', authMiddleware, async (req, res) => {
+    if (!validId(req.params.id)) return res.status(400).json({ message: 'Invalid live.' });
+    try {
+      const room = await getRoom(req.params.id);
+      if (!room || String(room.host_id) !== String(req.userId)) {
+        return res.status(403).json({ message: 'Only the host can view join requests.' });
+      }
+      const requests = await pool.query(
+        `SELECT r.id AS request_id, r.user_id, r.created_at, u.username, u.avatar
+         FROM live_join_requests r
+         JOIN users u ON u.id = r.user_id
+         WHERE r.room_id=$1::bigint AND r.status='pending'
+         ORDER BY r.created_at`,
+        [room.id]
+      );
+      return res.json(requests.rows);
+    } catch (err) {
+      console.error('Live join requests list error:', err);
+      return res.status(500).json({ message: 'Internal server error.' });
+    }
+  });
+
+  app.patch('/api/live/:id/requests/:userId', authMiddleware, async (req, res) => {
+    if (!validId(req.params.id) || !validId(req.params.userId)) {
+      return res.status(400).json({ message: 'Invalid live join request.' });
+    }
+    const { status } = req.body || {};
+    if (!['accepted', 'declined'].includes(status)) {
+      return res.status(400).json({ message: 'Choose whether to accept or decline the request.' });
+    }
+    try {
+      const room = await getRoom(req.params.id);
+      if (!room || String(room.host_id) !== String(req.userId)) {
+        return res.status(403).json({ message: 'Only the host can respond to join requests.' });
+      }
+      if (room.status !== 'live' || room.visibility !== 'private') {
+        return res.status(409).json({ message: 'This live is no longer accepting requests.' });
+      }
+      const updated = await pool.query(
+        `UPDATE live_join_requests SET status=$1, responded_at=NOW()
+         WHERE room_id=$2::bigint AND user_id=$3::bigint AND status='pending'
+         RETURNING user_id, status`,
+        [status, room.id, req.params.userId]
+      );
+      if (updated.rows.length === 0) {
+        return res.status(404).json({ message: 'Pending join request not found.' });
+      }
+      io?.to(`user:${req.params.userId}`).emit('live:access', {
+        roomId: String(room.id),
+        status,
+      });
+      return res.json({ status });
+    } catch (err) {
+      console.error('Live join request response error:', err);
+      return res.status(500).json({ message: 'Internal server error.' });
     }
   });
 
@@ -203,6 +351,7 @@ function setupLive(app, pool, authMiddleware, push) {
     io = socketIo;
     io.on('connection', (socket) => {
       socket.data.userId = socket.userId; // fetchSockets() only exposes socket.data
+      socket.join(`user:${socket.userId}`);
       const lastChat = { t: 0 };
 
       socket.on('live:join', async ({ roomId } = {}, ack) => {
@@ -246,9 +395,23 @@ function setupLive(app, pool, authMiddleware, push) {
         io.to(`live:${roomId}`).emit('live:votes', { roomId: key, ...tally(key) });
       });
 
-      socket.on('live:reaction', ({ roomId, emoji } = {}) => {
-        if (!socket.rooms.has(`live:${roomId}`) || !['🔥', '👏', '😂', '😮', '❤️'].includes(emoji)) return;
-        io.to(`live:${roomId}`).emit('live:reaction', { roomId: String(roomId), emoji });
+      socket.on('live:reaction', ({ roomId, reaction, emoji } = {}) => {
+        if (!socket.rooms.has(`live:${roomId}`)) return;
+        const reactions = {
+          heart: '❤️',
+          clap: '👏',
+          fire: '🔥',
+          laugh: '😂',
+          wow: '😮',
+        };
+        const legacyNames = Object.fromEntries(Object.entries(reactions).map(([name, value]) => [value, name]));
+        const name = reactions[reaction] ? reaction : legacyNames[emoji];
+        if (!name) return;
+        io.to(`live:${roomId}`).emit('live:reaction', {
+          roomId: String(roomId),
+          reaction: name,
+          emoji: reactions[name],
+        });
       });
 
       socket.on('disconnect', async () => {

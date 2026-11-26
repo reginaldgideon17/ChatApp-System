@@ -898,20 +898,3 @@ html body .feed-page .follow-label { color: #ff6a28; }
   html body .feed-page .composer-preview,
   html body .feed-page .composer-background-options { padding-left: 0; margin-left: 0; }
 }
-
-/* "Link copied" message after tapping Share */
-.feed-toast {
-  position: fixed;
-  left: 50%;
-  bottom: 28px;
-  z-index: 50;
-  transform: translateX(-50%);
-  padding: 12px 22px;
-  background: #1c1a20;
-  border-radius: 999px;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  box-shadow: 0 16px 36px -12px rgba(0, 0, 0, 0.5);
-}
-@media (max-width: 768px) { .feed-toast { bottom: 84px; } }
