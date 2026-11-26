@@ -93,6 +93,22 @@
   word-break: break-word;
 }
 
+.message-content a,
+.message-reply-text a,
+.message-status-reply-text a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+
+.message-content a:hover,
+.message-reply-text a:hover,
+.message-status-reply-text a:hover {
+  opacity: 0.82;
+}
+
 .message-status-context {
   display: flex;
   flex-direction: column;

@@ -4,6 +4,7 @@ import { io } from "socket.io-client";
 import "../css/Chatpage.css";
 import AttachmentPicker from "../components/AttachmentPicker";
 import MessageAttachment from "../components/MessageAttachment";
+import MessageText from "../components/MessageText";
 import VoiceNoteButton from "../components/VoiceNoteButton";
 import { MAX_ATTACHMENT_SIZE, readFileAsDataUrl } from "../attachmentUtils";
 
@@ -259,13 +260,13 @@ export default function GroupChatPage() {
                     <div className="message-reply-quote">
                       <span className="message-reply-author">{msg.reply_username || "Deleted"}</span>
                       <span className="message-reply-text">
-                        {msg.reply_content || "Original message deleted"}
+                        <MessageText>{msg.reply_content || "Original message deleted"}</MessageText>
                       </span>
                     </div>
                   )}
 
                   <span className="message-content">
-                    {msg.content}
+                    <MessageText>{msg.content}</MessageText>
                     {msg.edited_at && <span className="message-edited-tag"> (edited)</span>}
                   </span>
                   <MessageAttachment attachment={msg.attachment} messageId={msg.id} token={token} />

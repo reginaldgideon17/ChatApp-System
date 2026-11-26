@@ -31,6 +31,7 @@ function setupLive(app, pool, authMiddleware, push) {
         responded_at TIMESTAMPTZ,
         UNIQUE (room_id, user_id)
       )`);
+    await pool.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS live_id BIGINT`);
     await pool.query(`CREATE INDEX IF NOT EXISTS live_join_requests_pending_idx ON live_join_requests(room_id, status)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS live_rooms_status_idx ON live_rooms(status, started_at DESC)`);
     // rooms left "live" by a server restart are closed
@@ -156,8 +157,17 @@ function setupLive(app, pool, authMiddleware, push) {
       const friends = await pool.query(
         `SELECT CASE WHEN requester_id=$1::bigint THEN addressee_id ELSE requester_id END AS id
          FROM friendships WHERE status='accepted' AND (requester_id=$1::bigint OR addressee_id=$1::bigint)`, [req.userId]);
+      if (friends.rows.length > 0) {
+        await pool.query(
+          `INSERT INTO notifications (user_id, actor_id, type, live_id)
+           SELECT f.friend_id, $1::bigint, 'live', $3::bigint
+           FROM unnest($2::bigint[]) AS f(friend_id)`,
+          [req.userId, friends.rows.map((friend) => friend.id), room.id]
+        );
+      }
       friends.rows.forEach((f) => {
         if (io) io.to(`user:${f.id}`).emit('liveChanged');
+        if (io) io.to(`user:${f.id}`).emit('newNotification');
         push.sendToUser(f.id, {
           title: room.host_username, body: `is live: ${title}`.slice(0, 120), url: `/live/${room.id}`, tag: `live-${room.id}`,
         });
@@ -224,6 +234,18 @@ function setupLive(app, pool, authMiddleware, push) {
       )).rows[0];
       if (request.status === 'pending') {
         const requester = await pool.query('SELECT username, avatar FROM users WHERE id=$1::bigint', [req.userId]);
+        await pool.query(
+          `INSERT INTO notifications (user_id, actor_id, type, live_id)
+           VALUES ($1::bigint, $2::bigint, 'live_request', $3::bigint)`,
+          [room.host_id, req.userId, room.id]
+        );
+        io?.to(`user:${room.host_id}`).emit('newNotification');
+        push.sendToUser(room.host_id, {
+          title: requester.rows[0]?.username || 'A friend',
+          body: `asked to join your private live: ${room.title}`.slice(0, 120),
+          url: `/live/${room.id}`,
+          tag: `live-request-${room.id}-${req.userId}`,
+        });
         io?.to(`user:${room.host_id}`).emit('live:join-request', {
           roomId: String(room.id),
           requestId: String(request.id),
@@ -289,6 +311,20 @@ function setupLive(app, pool, authMiddleware, push) {
       io?.to(`user:${req.params.userId}`).emit('live:access', {
         roomId: String(room.id),
         status,
+      });
+      await pool.query(
+        `INSERT INTO notifications (user_id, actor_id, type, live_id)
+         VALUES ($1::bigint, $2::bigint, $3, $4::bigint)`,
+        [req.params.userId, req.userId, `live_access_${status}`, room.id]
+      );
+      io?.to(`user:${req.params.userId}`).emit('newNotification');
+      push.sendToUser(req.params.userId, {
+        title: room.host_username,
+        body: status === 'accepted'
+          ? `accepted your request to join "${room.title}".`
+          : `declined your request to join "${room.title}".`,
+        url: `/live/${room.id}`,
+        tag: `live-access-${room.id}`,
       });
       return res.json({ status });
     } catch (err) {

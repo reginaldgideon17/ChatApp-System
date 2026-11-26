@@ -10,7 +10,7 @@ const MAX_PROOF_BYTES = 10 * 1024 * 1024;
 const TABS = [
   { id: "received", label: "For you" },
   { id: "sent", label: "Sent" },
-  { id: "done", label: "Done" },
+  { id: "done", label: "History" },
   { id: "ranks", label: "Ranks" },
 ];
 const STATUS_LABEL = {
@@ -46,6 +46,14 @@ function formatLimit(minutes) {
   if (minutes < 60) return `${minutes} min`;
   if (minutes < 1440) return `${minutes / 60} hour`;
   return "24 hours";
+}
+
+function statusLabel(dare) {
+  if (dare.status === "declined" && dare.accepted_at) {
+    return Number(dare.stake_points) > 0 && !dare.stake_settled_at ? "Cancelled" : "Backed down";
+  }
+  if (dare.status === "expired" && dare.accepted_at) return "Forfeited";
+  return STATUS_LABEL[dare.status] || dare.status;
 }
 
 function useCountdown(expiresAt, active) {
@@ -108,17 +116,25 @@ function DareCard({ dare, me, onOpen }) {
     : { name: dare.recipient_username, avatar: dare.recipient_avatar };
   const live = dare.status === "pending" || dare.status === "accepted";
   const countdown = useCountdown(dare.expires_at, live);
+  const stake = Number(dare.stake_points) || 0;
   return (
     <button type="button" className="dare-card" onClick={() => onOpen(dare)}>
       <Avatar src={other.avatar} name={other.name} className="dare-card-avatar" />
       <div className="dare-card-body">
         <p className="dare-card-who">
-          {iAmRecipient ? `${other.name} dared you` : `You dared ${other.name}`}
+          {iAmRecipient
+            ? dare.status === "approved" ? `You completed ${other.name}'s dare` : `Challenged by ${other.name}`
+            : `You challenged ${other.name}`}
         </p>
         <p className="dare-card-text"><DareIcon name={dare.category} />{dare.text}</p>
         <p className="dare-card-meta">
-          <span className={`dare-pill dare-pill-${dare.status}`}>{STATUS_LABEL[dare.status] || dare.status}</span>
-          <span>+{dare.points} pts</span>
+          <span className={`dare-pill dare-pill-${dare.status}`}>{statusLabel(dare)}</span>
+          <span>Reward +{dare.points} pts</span>
+          {stake > 0 && (
+            <span className="dare-stake-meta">
+              Stake {stake} pts{dare.stake_settled_at ? ` · ${iAmRecipient ? "−" : "+"}${stake}` : ""}
+            </span>
+          )}
           {live && countdown && <span className="dare-countdown">{countdown}</span>}
         </p>
       </div>
@@ -136,6 +152,7 @@ function DareModal({ dare, me, token, onClose, onChanged }) {
   const [file, setFile] = useState(null);
   const [note, setNote] = useState("");
   const [reportOpen, setReportOpen] = useState(false);
+  const [confirmForfeit, setConfirmForfeit] = useState(false);
   const [reason, setReason] = useState("");
   const [notice, setNotice] = useState("");
   const fileRef = useRef(null);
@@ -216,6 +233,7 @@ function DareModal({ dare, me, token, onClose, onChanged }) {
   }
 
   const other = iAmRecipient ? dare.sender_username : dare.recipient_username;
+  const stake = Number(dare.stake_points) || 0;
 
   return (
     <div className="dares-overlay" role="dialog" aria-modal="true" onClick={onClose}>
@@ -224,11 +242,21 @@ function DareModal({ dare, me, token, onClose, onChanged }) {
         <p className="dares-eyebrow">{iAmRecipient ? `From ${other}` : `To ${other}`}</p>
         <h2 className="dares-modal-text"><DareIcon name={dare.category} />{dare.text}</h2>
         <p className="dare-card-meta">
-          <span className={`dare-pill dare-pill-${dare.status}`}>{STATUS_LABEL[dare.status] || dare.status}</span>
-          <span>+{dare.points} pts</span>
+          <span className={`dare-pill dare-pill-${dare.status}`}>{statusLabel(dare)}</span>
+          <span>Reward +{dare.points} pts</span>
+          {stake > 0 && <span className="dare-stake-meta">Stake {stake} pts</span>}
           <span>{formatLimit(dare.time_limit_minutes)} limit</span>
           {live && countdown && <span className="dare-countdown">{countdown}</span>}
         </p>
+        {stake > 0 && (
+          <p className="dares-stake-note">
+            {dare.stake_settled_at
+              ? `The ${stake}-point stake has been transferred ${iAmRecipient ? "to the challenger" : "to you"}.`
+              : dare.status === "declined" && dare.accepted_at
+                ? "This dare was cancelled after it was reported; its stake was not transferred."
+                : `If ${iAmRecipient ? "you" : "the recipient"} backs down after accepting or misses the deadline, ${stake} points transfer from them to the challenger.`}
+          </p>
+        )}
 
         {dare.has_proof && (dare.status === "submitted" || dare.status === "approved") && (
           <div className="dares-proof-wrap">
@@ -266,8 +294,24 @@ function DareModal({ dare, me, token, onClose, onChanged }) {
                 {busy ? "Sending…" : "Send proof"}
               </button>
               <button type="button" className="dares-btn" disabled={busy} onClick={() => navigate(`/live?dare=${dare.id}&title=${encodeURIComponent(dare.text.slice(0, 100))}`)}><DareIcon name="video" />Do it live</button>
-              <button type="button" className="dares-btn" disabled={busy} onClick={() => act("decline")}>Give up</button>
+              <button
+                type="button"
+                className="dares-btn"
+                disabled={busy}
+                onClick={() => stake > 0 ? setConfirmForfeit(true) : act("decline")}
+              >
+                {stake > 0 ? `Back down · lose ${stake} pts` : "Give up"}
+              </button>
             </div>
+            {confirmForfeit && (
+              <div className="dares-forfeit-confirm" role="group" aria-label="Confirm backing down">
+                <p>Back down and transfer {stake} points to {other}?</p>
+                <div className="dares-actions">
+                  <button type="button" className="dares-btn dares-btn-primary" disabled={busy} onClick={() => act("decline")}>Confirm back down</button>
+                  <button type="button" className="dares-btn" disabled={busy} onClick={() => setConfirmForfeit(false)}>Keep going</button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -316,6 +360,7 @@ function NewDare({ token, library, onClose, onSent }) {
   const [category, setCategory] = useState("creative");
   const [text, setText] = useState("");
   const [limit, setLimit] = useState(60);
+  const [stakePoints, setStakePoints] = useState("20");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -335,7 +380,13 @@ function NewDare({ token, library, onClose, onSent }) {
       const res = await fetch(`${API}/api/dares`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ recipientId: String(friendId), text: text.trim(), category, timeLimitMinutes: limit }),
+        body: JSON.stringify({
+          recipientId: String(friendId),
+          text: text.trim(),
+          category,
+          timeLimitMinutes: limit,
+          stakePoints: Number(stakePoints),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Could not send the dare.");
@@ -413,12 +464,27 @@ function NewDare({ token, library, onClose, onSent }) {
           ))}
         </div>
 
+        <label className="dares-label" htmlFor="dare-stake-points">Stake if they back down (1–100 points)</label>
+        <input
+          id="dare-stake-points"
+          className="dares-input"
+          type="number"
+          min="1"
+          max="100"
+          step="1"
+          value={stakePoints}
+          onChange={(e) => setStakePoints(e.target.value)}
+        />
+        <p className="dares-muted dares-small">
+          If they accept and later back down or miss the deadline, these points transfer from their balance to yours.
+        </p>
+
         {error && <p className="dares-error" role="alert">{error}</p>}
         <div className="dares-actions">
           <button
             type="button"
             className="dares-btn dares-btn-primary"
-            disabled={busy || !friendId || text.trim().length < 5}
+            disabled={busy || !friendId || text.trim().length < 5 || !/^\d+$/.test(stakePoints) || Number(stakePoints) < 1 || Number(stakePoints) > 100}
             onClick={send}
           >
             {busy ? "Sending…" : "Send dare"}

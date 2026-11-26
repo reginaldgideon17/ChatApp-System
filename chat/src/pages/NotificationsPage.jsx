@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
+import { io } from "socket.io-client";
 import Avatar from "../components/Avatar";
 import "../css/Notifications.css";
 
@@ -7,6 +8,10 @@ function describeNotification(type) {
   if (type === "friend_request") return "sent you a friend request.";
   if (type === "like") return "liked your post.";
   if (type === "comment") return "commented on your post.";
+  if (type === "live") return "started a live.";
+  if (type === "live_request") return "asked to join your private live.";
+  if (type === "live_access_accepted") return "accepted your request to join a live.";
+  if (type === "live_access_declined") return "declined your request to join a live.";
   return "interacted with you.";
 }
 
@@ -56,6 +61,12 @@ export default function NotificationsPage() {
     fetchNotifications();
   }, [fetchNotifications]);
 
+  useEffect(() => {
+    const socket = io("https://chatapp-system-mbzq.onrender.com", { auth: { token } });
+    socket.on("newNotification", fetchNotifications);
+    return () => socket.disconnect();
+  }, [token, fetchNotifications]);
+
   async function markAllRead() {
     setMarkingRead(true);
     setError("");
@@ -96,6 +107,8 @@ export default function NotificationsPage() {
 
     if (notification.type === "friend_request") {
       navigate("/requests");
+    } else if (notification.live_id) {
+      navigate(`/live/${notification.live_id}`);
     } else if (notification.post_id) {
       navigate(`/feed#post-${notification.post_id}`);
     } else {
@@ -113,7 +126,7 @@ export default function NotificationsPage() {
         </button>
         <div className="notifications-heading">
           <h1>Notifications</h1>
-          <p className="notifications-subtitle">Friend requests, likes, and comments in one place.</p>
+          <p className="notifications-subtitle">Friend requests, live rooms, likes, and comments in one place.</p>
         </div>
         <button
           className="notifications-read-button"

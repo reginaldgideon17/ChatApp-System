@@ -13,6 +13,7 @@ const TIME_LIMITS = [10, 60, 1440]; // minutes
 const MAX_PROOF_SIZE = 10 * 1024 * 1024;
 const MAX_DARES_PER_DAY = 20;
 const MAX_ACTIVE_PER_PAIR = 5;
+const MAX_STAKE_POINTS = 100;
 
 const LIBRARY = {
   creative: ['Sing the chorus of your favourite song in a voice note', 'Tell a joke in your best accent', 'Hum a song and let me guess it', 'Make up a 4-line rap about your day'],
@@ -59,6 +60,83 @@ function parseProof(value) {
 
 function setupDares(app, pool, authMiddleware, push) {
   let io = null;
+  let expiryTimer = null;
+
+  async function settleStake(client, dare) {
+    if (dare.stake_settled_at) return;
+    const stake = Number(dare.stake_points) || 0;
+    if (stake > 0) {
+      await client.query(
+        `INSERT INTO dare_points_log (user_id, dare_id, points, entry_type)
+         VALUES ($1, $2, $3, 'stake_won')
+         ON CONFLICT (user_id, dare_id) DO NOTHING`,
+        [dare.sender_id, dare.id, stake]
+      );
+      await client.query(
+        `INSERT INTO dare_points_log (user_id, dare_id, points, entry_type)
+         VALUES ($1, $2, $3, 'stake_lost')
+         ON CONFLICT (user_id, dare_id) DO NOTHING`,
+        [dare.recipient_id, dare.id, -stake]
+      );
+    }
+    await client.query(
+      'UPDATE dares SET stake_settled_at = NOW() WHERE id = $1 AND stake_settled_at IS NULL',
+      [dare.id]
+    );
+  }
+
+  function notifyForfeit(dare, reason) {
+    const stake = Number(dare.stake_points) || 0;
+    if (stake < 1) return;
+    const expired = reason === 'timed out';
+    push.sendToUser(dare.sender_id, {
+      title: dare.recipient_username,
+      body: expired
+        ? `Your dare expired. You earned ${stake} stake points.`
+        : `${dare.recipient_username} backed down. You earned ${stake} stake points.`,
+      url: '/dares',
+      tag: `dare-stake-${dare.id}`,
+    });
+    push.sendToUser(dare.recipient_id, {
+      title: dare.sender_username,
+      body: expired
+        ? `Your dare expired. ${stake} points went to ${dare.sender_username}.`
+        : `You backed down. ${stake} points went to ${dare.sender_username}.`,
+      url: '/dares',
+      tag: `dare-stake-${dare.id}`,
+    });
+  }
+
+  async function settleExpiredDares() {
+    const client = await pool.connect();
+    let expired = [];
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        `SELECT id, sender_id, recipient_id, stake_points, stake_settled_at
+         FROM dares
+         WHERE status = 'accepted' AND expires_at <= NOW() AND stake_settled_at IS NULL
+         ORDER BY expires_at
+         LIMIT 100
+         FOR UPDATE SKIP LOCKED`
+      );
+      expired = result.rows;
+      for (const dare of expired) await settleStake(client, dare);
+      await client.query('COMMIT');
+    } catch (err) {
+      try { await client.query('ROLLBACK'); } catch { /* preserve the original error */ }
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    for (const dare of expired) {
+      const updated = await getDare(dare.id);
+      if (!updated) continue;
+      ping(dare.sender_id, dare.recipient_id);
+      notifyForfeit(updated, 'timed out');
+    }
+  }
 
   async function initDaresTables() {
     await pool.query(`
@@ -69,6 +147,8 @@ function setupDares(app, pool, authMiddleware, push) {
         text VARCHAR(200) NOT NULL,
         category VARCHAR(20) NOT NULL,
         points INT NOT NULL,
+        stake_points INT NOT NULL DEFAULT 0,
+        stake_settled_at TIMESTAMPTZ,
         time_limit_minutes INT NOT NULL,
         status VARCHAR(12) NOT NULL DEFAULT 'pending'
           CHECK (status IN ('pending','accepted','submitted','approved','declined')),
@@ -84,6 +164,9 @@ function setupDares(app, pool, authMiddleware, push) {
         proof_note VARCHAR(200),
         CHECK (sender_id <> recipient_id)
       )`);
+    await pool.query(`ALTER TABLE dares ADD COLUMN IF NOT EXISTS stake_points INT NOT NULL DEFAULT 0`);
+    await pool.query(`ALTER TABLE dares ADD COLUMN IF NOT EXISTS stake_settled_at TIMESTAMPTZ`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS dares_expiry_idx ON dares(expires_at) WHERE status = 'accepted' AND stake_settled_at IS NULL`);
     await pool.query('CREATE INDEX IF NOT EXISTS dares_recipient_idx ON dares (recipient_id, status)');
     await pool.query('CREATE INDEX IF NOT EXISTS dares_sender_idx ON dares (sender_id, status)');
     await pool.query(`
@@ -92,8 +175,12 @@ function setupDares(app, pool, authMiddleware, push) {
         user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
         dare_id BIGINT NOT NULL UNIQUE REFERENCES dares(id) ON DELETE CASCADE,
         points INT NOT NULL,
+        entry_type VARCHAR(16) NOT NULL DEFAULT 'completion',
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )`);
+    await pool.query(`ALTER TABLE dare_points_log ADD COLUMN IF NOT EXISTS entry_type VARCHAR(16) NOT NULL DEFAULT 'completion'`);
+    await pool.query(`ALTER TABLE dare_points_log DROP CONSTRAINT IF EXISTS dare_points_log_dare_id_key`);
+    await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS dare_points_log_user_dare_unique ON dare_points_log(user_id, dare_id)`);
     await pool.query('CREATE INDEX IF NOT EXISTS dare_points_user_idx ON dare_points_log (user_id, created_at)');
     await pool.query(`
       CREATE TABLE IF NOT EXISTS dare_settings (
@@ -115,15 +202,22 @@ function setupDares(app, pool, authMiddleware, push) {
         reason VARCHAR(200) NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )`);
+    await settleExpiredDares();
+    if (!expiryTimer) {
+      expiryTimer = setInterval(() => {
+        settleExpiredDares().catch((err) => console.error('Dare expiry settlement error:', err));
+      }, 30000);
+      if (typeof expiryTimer.unref === 'function') expiryTimer.unref();
+    }
   }
 
-  // Every dare as the API shows it. "expired" is worked out here, so no timer job is needed.
+  // Expose timed-out dares as expired while the settlement job records any stake transfer.
   const BASE = `
-    SELECT d.id, d.sender_id, d.recipient_id, d.text, d.category, d.points, d.time_limit_minutes,
+    SELECT d.id, d.sender_id, d.recipient_id, d.text, d.category, d.points, d.stake_points, d.stake_settled_at, d.time_limit_minutes,
            d.created_at, d.expires_at, d.accepted_at, d.submitted_at, d.completed_at,
            d.proof_name, d.proof_mime, d.proof_size, d.proof_note,
            (d.proof_name IS NOT NULL) AS has_proof,
-           CASE WHEN d.status IN ('pending','accepted') AND d.expires_at < NOW() THEN 'expired' ELSE d.status END AS status,
+           CASE WHEN d.status IN ('pending','accepted') AND d.expires_at <= NOW() THEN 'expired' ELSE d.status END AS status,
            su.username AS sender_username, su.avatar AS sender_avatar,
            ru.username AS recipient_username, ru.avatar AS recipient_avatar
     FROM dares d
@@ -177,7 +271,7 @@ function setupDares(app, pool, authMiddleware, push) {
          )
          SELECT u.id, u.username, u.avatar,
                 COALESCE(SUM(p.points) FILTER (WHERE $2::boolean OR p.created_at > NOW() - INTERVAL '7 days'), 0)::int AS points,
-                (COUNT(p.id) FILTER (WHERE $2::boolean OR p.created_at > NOW() - INTERVAL '7 days'))::int AS completed
+                (COUNT(p.id) FILTER (WHERE p.entry_type = 'completion' AND ($2::boolean OR p.created_at > NOW() - INTERVAL '7 days')))::int AS completed
          FROM circle c
          JOIN users u ON u.id = c.id
          LEFT JOIN dare_points_log p ON p.user_id = u.id
@@ -195,6 +289,7 @@ function setupDares(app, pool, authMiddleware, push) {
 
   app.get('/api/dares/stats', authMiddleware, async (req, res) => {
     try {
+      await settleExpiredDares();
       const [totals, counts, days, awaiting] = await Promise.all([
         pool.query(
           `SELECT COALESCE(SUM(points),0)::int AS total,
@@ -204,7 +299,8 @@ function setupDares(app, pool, authMiddleware, push) {
           `SELECT category, status FROM (${BASE}) q WHERE q.recipient_id = $1`, [req.userId]),
         pool.query(
           `SELECT DISTINCT to_char(created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS d
-           FROM dare_points_log WHERE user_id = $1 ORDER BY d DESC LIMIT 60`, [req.userId]),
+          FROM dare_points_log WHERE user_id = $1 AND entry_type = 'completion'
+          ORDER BY d DESC LIMIT 60`, [req.userId]),
         pool.query(`SELECT COUNT(*)::int AS n FROM dares WHERE sender_id = $1 AND status = 'submitted'`, [req.userId]),
       ]);
 
@@ -334,11 +430,15 @@ function setupDares(app, pool, authMiddleware, push) {
     const text = String(req.body?.text ?? '').replace(/\s+/g, ' ').trim();
     const category = String(req.body?.category ?? '');
     const minutes = Number(req.body?.timeLimitMinutes);
+    const stakePoints = req.body?.stakePoints === undefined ? 0 : Number(req.body.stakePoints);
 
     if (!validId(recipientId)) return res.status(400).json({ message: 'Pick a friend to dare.' });
     if (recipientId === String(req.userId)) return res.status(400).json({ message: 'You cannot dare yourself.' });
     if (!CATEGORIES[category]) return res.status(400).json({ message: 'Pick a category.' });
     if (!TIME_LIMITS.includes(minutes)) return res.status(400).json({ message: 'Pick a time limit.' });
+    if (!Number.isInteger(stakePoints) || stakePoints < 0 || stakePoints > MAX_STAKE_POINTS) {
+      return res.status(400).json({ message: `Choose a stake from 0 to ${MAX_STAKE_POINTS} points.` });
+    }
     if (text.length < 5 || text.length > 200) return res.status(400).json({ message: 'A dare must be 5 to 200 characters.' });
     if (isUnsafe(text)) {
       return res.status(400).json({
@@ -375,10 +475,10 @@ function setupDares(app, pool, authMiddleware, push) {
       }
 
       const inserted = await pool.query(
-        `INSERT INTO dares (sender_id, recipient_id, text, category, points, time_limit_minutes, expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6, NOW() + make_interval(mins => $6::int))
+        `INSERT INTO dares (sender_id, recipient_id, text, category, points, stake_points, time_limit_minutes, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW() + make_interval(mins => $7::int))
          RETURNING id`,
-        [req.userId, recipientId, text, category, CATEGORIES[category].points, minutes]);
+        [req.userId, recipientId, text, category, CATEGORIES[category].points, stakePoints, minutes]);
       const dare = await getDare(inserted.rows[0].id);
 
       ping(req.userId, recipientId);
@@ -424,8 +524,13 @@ function setupDares(app, pool, authMiddleware, push) {
       if (dare.status === 'expired') return res.status(409).json({ message: 'This dare has run out of time.' });
       if (dare.status !== 'pending') return res.status(409).json({ message: 'This dare cannot be accepted now.' });
 
-      await pool.query(
-        `UPDATE dares SET status = 'accepted', accepted_at = NOW() WHERE id = $1 AND status = 'pending'`, [dare.id]);
+      const accepted = await pool.query(
+        `UPDATE dares SET status = 'accepted', accepted_at = NOW()
+         WHERE id = $1 AND status = 'pending' AND expires_at > NOW()
+         RETURNING id`,
+        [dare.id]
+      );
+      if (accepted.rows.length === 0) return res.status(409).json({ message: 'This dare has run out of time.' });
       ping(dare.sender_id, dare.recipient_id);
       push.sendToUser(dare.sender_id, {
         title: dare.recipient_username, body: 'accepted your dare 🎯', url: '/dares', tag: `dare-${dare.id}`,
@@ -437,21 +542,58 @@ function setupDares(app, pool, authMiddleware, push) {
     }
   });
 
-  // Skipping or quitting never costs anything
   app.post('/api/dares/:id/decline', authMiddleware, async (req, res) => {
+    if (!validId(req.params.id)) return res.status(400).json({ message: 'Invalid dare.' });
+    const client = await pool.connect();
+    let forfeitReason = null;
     try {
-      const dare = await loadForParticipant(req, res);
-      if (!dare) return;
-      if (String(dare.recipient_id) !== String(req.userId)) return res.status(403).json({ message: 'Only the person dared can skip.' });
-      if (!['pending', 'accepted'].includes(dare.status)) return res.status(409).json({ message: 'This dare cannot be skipped now.' });
+      await client.query('BEGIN');
+      const result = await client.query('SELECT * FROM dares WHERE id = $1 FOR UPDATE', [req.params.id]);
+      const dare = result.rows[0];
+      if (!dare || (String(dare.sender_id) !== String(req.userId) && String(dare.recipient_id) !== String(req.userId))) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ message: 'Dare not found.' });
+      }
+      if (String(dare.recipient_id) !== String(req.userId)) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ message: 'Only the person dared can skip.' });
+      }
+      if (!['pending', 'accepted'].includes(dare.status)) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ message: 'This dare cannot be skipped now.' });
+      }
 
-      await pool.query(
-        `UPDATE dares SET status = 'declined', completed_at = NOW() WHERE id = $1 AND status IN ('pending','accepted')`, [dare.id]);
+      const expired = new Date(dare.expires_at).getTime() <= Date.now();
+      if (dare.status === 'pending' && expired) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ message: 'This dare has run out of time.' });
+      }
+      if (dare.status === 'accepted' && expired) {
+        const alreadySettled = Boolean(dare.stake_settled_at);
+        await settleStake(client, dare);
+        if (!alreadySettled) forfeitReason = 'timed out';
+      } else {
+        await client.query(
+          `UPDATE dares SET status = 'declined', completed_at = NOW() WHERE id = $1 AND status IN ('pending','accepted')`,
+          [dare.id]
+        );
+        if (dare.status === 'accepted') {
+          await settleStake(client, dare);
+          forfeitReason = 'backed down';
+        }
+      }
+      await client.query('COMMIT');
+
+      const updatedDare = await getDare(dare.id);
       ping(dare.sender_id, dare.recipient_id);
-      res.json(await getDare(dare.id));
+      if (forfeitReason) notifyForfeit(updatedDare, forfeitReason);
+      return res.json(updatedDare);
     } catch (err) {
+      try { await client.query('ROLLBACK'); } catch { /* preserve the original error */ }
       console.error('Decline dare error:', err);
-      res.status(500).json({ message: 'Internal server error.' });
+      return res.status(500).json({ message: 'Internal server error.' });
+    } finally {
+      client.release();
     }
   });
 
@@ -529,7 +671,9 @@ function setupDares(app, pool, authMiddleware, push) {
       }
       await client.query(`UPDATE dares SET status = 'approved', completed_at = NOW() WHERE id = $1`, [d.id]);
       await client.query(
-        'INSERT INTO dare_points_log (user_id, dare_id, points) VALUES ($1, $2, $3) ON CONFLICT (dare_id) DO NOTHING',
+        `INSERT INTO dare_points_log (user_id, dare_id, points, entry_type)
+         VALUES ($1, $2, $3, 'completion')
+         ON CONFLICT (user_id, dare_id) DO NOTHING`,
         [d.recipient_id, d.id, d.points]);
       await client.query('COMMIT');
 

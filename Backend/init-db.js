@@ -155,6 +155,7 @@ async function initializeSchema() {
       read BOOLEAN NOT NULL DEFAULT FALSE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       post_id BIGINT REFERENCES posts(id) ON DELETE CASCADE,
+      live_id BIGINT,
       status_id BIGINT REFERENCES statuses(id) ON DELETE CASCADE,
       comment_id BIGINT REFERENCES post_comments(id) ON DELETE CASCADE,
       conversation_id BIGINT REFERENCES conversations(id) ON DELETE CASCADE,

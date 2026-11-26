@@ -5,6 +5,7 @@ import "../css/Chatpage.css";
 import Avatar from "../components/Avatar";
 import AttachmentPicker from "../components/AttachmentPicker";
 import MessageAttachment from "../components/MessageAttachment";
+import MessageText from "../components/MessageText";
 import VoiceNoteButton from "../components/VoiceNoteButton";
 import UserAvatarMenu from "../components/UserAvatarMenu";
 import { MAX_ATTACHMENT_SIZE, readFileAsDataUrl } from "../attachmentUtils";
@@ -669,7 +670,7 @@ useEffect(() => {
                     <div className="message-reply-quote">
                       <span className="message-reply-author">{msg.reply_username || "Deleted"}</span>
                       <span className="message-reply-text">
-                        {msg.reply_content || "Original message deleted"}
+                        <MessageText>{msg.reply_content || "Original message deleted"}</MessageText>
                       </span>
                     </div>
                   )}
@@ -679,11 +680,11 @@ useEffect(() => {
                       <>
                         <span className="message-status-context">
                           <strong>{isMine ? `Your reply to ${statusReplyName}'s status` : "Replied to your status"}</strong>
-                          {statusReplyQuote && <span>{statusReplyQuote}</span>}
+                          {statusReplyQuote && <span><MessageText>{statusReplyQuote}</MessageText></span>}
                         </span>
-                        <span className="message-status-reply-text">{statusReplyText}</span>
+                        <span className="message-status-reply-text"><MessageText>{statusReplyText}</MessageText></span>
                       </>
-                    ) : msg.content}
+                    ) : <MessageText>{msg.content}</MessageText>}
                     {msg.edited_at && <span className="message-edited-tag"> (edited)</span>}
                   </span>
                   <MessageAttachment attachment={msg.attachment} messageId={msg.id} token={token} />

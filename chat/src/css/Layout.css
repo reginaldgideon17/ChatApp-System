@@ -244,6 +244,10 @@ html, body {
     padding-bottom: calc(74px + env(safe-area-inset-bottom));
   }
 
+  .app-content.has-mobile-page-header {
+    padding-top: var(--mobile-header-height);
+  }
+
   .app-content.chat-layout-content {
     height: 100dvh;
     min-height: 0;
@@ -251,9 +255,12 @@ html, body {
   }
 
   .mobile-app-header {
-    position: sticky;
+    position: fixed;
     top: 0;
+    right: 0;
+    left: 0;
     z-index: 45;
+    width: 100%;
     min-height: var(--mobile-header-height);
     display: flex;
     align-items: center;

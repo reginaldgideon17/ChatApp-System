@@ -1703,7 +1703,7 @@ app.get('/api/unread-counts', authMiddleware, async (req, res) => {
 app.get('/api/notifications', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT n.id, n.type, n.read, n.created_at, n.post_id,
+      `SELECT n.id, n.type, n.read, n.created_at, n.post_id, n.live_id,
               u.id AS actor_id, u.username AS actor_username, u.avatar AS actor_avatar
        FROM notifications n
        JOIN users u ON n.actor_id = u.id

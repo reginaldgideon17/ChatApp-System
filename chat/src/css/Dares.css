@@ -20,6 +20,7 @@ html[data-theme="dark"] .dares-page{--d-bg:#151413;--d-card:#201f1d;--d-text:#f3
 .dare-card-who{margin:0;font-size:.8rem;color:var(--d-muted)}
 .dare-card-text{margin:2px 0 6px;font-weight:600;overflow-wrap:anywhere}
 .dare-card-meta{margin:0;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:.78rem;color:var(--d-muted)}
+.dare-stake-meta{color:var(--d-accent);font-weight:700}
 .dare-pill{border-radius:999px;padding:2px 9px;font-weight:600;background:var(--d-line);color:var(--d-text)}
 .dare-pill-pending,.dare-pill-accepted{background:#ffe9d9;color:#a8450c}
 .dare-pill-submitted{background:#e3ecff;color:#2a4fb0}
@@ -46,6 +47,9 @@ html[data-theme="dark"] .dares-modal{--d-card:#201f1d;--d-text:#f3f1ee;--d-muted
 .dares-input{width:100%;box-sizing:border-box;border:1px solid var(--d-line);background:transparent;color:inherit;border-radius:12px;padding:10px 12px;font:inherit}
 .dares-textarea{min-height:76px;resize:vertical}
 .dares-proof-form{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.dares-stake-note,.dares-forfeit-confirm{margin:10px 0;padding:11px 13px;background:color-mix(in srgb,var(--d-accent) 9%,var(--d-card));border:1px solid var(--d-line);border-radius:12px;color:var(--d-text);font-size:.84rem;line-height:1.45}
+.dares-forfeit-confirm p{margin:0}
+.dares-forfeit-confirm .dares-actions{margin-top:10px}
 .dares-proof-wrap{margin-top:14px}
 .dares-proof{width:100%;max-height:360px;object-fit:contain;border-radius:14px;background:#000}
 .dares-proof-audio{width:100%}
